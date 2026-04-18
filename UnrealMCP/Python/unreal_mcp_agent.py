@@ -149,17 +149,18 @@ def load_session(db_path: str, session_id: str, limit: int = 40) -> List[Dict]:
 # ────────────────────────────────────────
 def _recv_full(sock: socket.socket) -> bytes:
     chunks = []
-    sock.settimeout(30)
+    sock.settimeout(300.0)  # wait up to 5 minutes for complex commands
     while True:
-        chunk = sock.recv(8192)
+        chunk = sock.recv(1024 * 1024)  # 1MB chunks for speed
         if not chunk:
             break
         chunks.append(chunk)
         data = b"".join(chunks)
         try:
-            json.loads(data.decode("utf-8"))
+            decoded = data.decode("utf-8")
+            json.loads(decoded)
             return data
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
             continue
     return b"".join(chunks)
 
@@ -168,7 +169,7 @@ def call_unreal(command: str, params: Dict) -> Dict:
     """Send a single command to the Unreal TCP bridge and return parsed JSON."""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(30)
+        s.settimeout(300.0)
         s.connect((UNREAL_HOST, UNREAL_PORT))
         payload = json.dumps({"type": command, "params": params}).encode("utf-8")
         s.sendall(payload)
@@ -176,6 +177,7 @@ def call_unreal(command: str, params: Dict) -> Dict:
         s.close()
         return json.loads(data.decode("utf-8"))
     except Exception as e:
+        log.exception(f"Error calling Unreal TCP bridge for tool {command}")
         return {"status": "error", "error": str(e)}
 
 
