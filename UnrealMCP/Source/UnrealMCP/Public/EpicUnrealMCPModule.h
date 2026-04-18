@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
+#include "Framework/Docking/TabManager.h"
 
 class FEpicUnrealMCPModule : public IModuleInterface
 {
@@ -24,5 +25,9 @@ public:
 	void ClearLogs();
 
 private:
+	void RegisterMenus();
+	TSharedRef<SDockTab> OnSpawnChatTab(const FSpawnTabArgs& SpawnTabArgs);
+
 	class FEpicUnrealMCPLogBuffer* LogBuffer = nullptr;
+	TSharedPtr<FTabSpawnerEntry> ChatTabSpawner;
 }; 

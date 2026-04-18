@@ -214,6 +214,21 @@ FString UEpicUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const T
                 ResultJson = MakeShareable(new FJsonObject);
                 ResultJson->SetStringField(TEXT("message"), TEXT("pong"));
             }
+            // Chat Message - forwarded to Python Agent loop
+            // Python receives this, calls the chosen LLM, executes tools, and returns a reply string.
+            else if (CommandType == TEXT("chat_message") ||
+                     CommandType == TEXT("test_connection"))
+            {
+                // These are handled entirely by the Python side.
+                // The Bridge passes the params straight through as a raw TCP command
+                // using the existing MCPServerRunnable approach.
+                // Since Python is the server in the reversed chat flow, we create a
+                // separate outgoing connection here.
+                ResultJson = MakeShareable(new FJsonObject);
+                ResultJson->SetStringField(TEXT("status"), TEXT("error"));
+                ResultJson->SetStringField(TEXT("error"), TEXT("Chat commands are handled by the Python Agent Layer. Make sure the Python server is running."));
+                UE_LOG(LogTemp, Warning, TEXT("EpicUnrealMCPBridge: chat_message received but Python server must be running to handle it."));
+            }
             // Editor Commands (legacy actor manipulation)
             else if (CommandType == TEXT("find_actors_by_name") ||
                      CommandType == TEXT("delete_actor") ||
