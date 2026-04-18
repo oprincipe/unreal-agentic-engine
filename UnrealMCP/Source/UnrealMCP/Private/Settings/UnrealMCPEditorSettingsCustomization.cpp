@@ -18,6 +18,41 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
+// ── Static model cache (persists across detail panel rebuilds) ──
+static TArray<TSharedPtr<FString>> GModelOptions;
+static EUnrealMCPProvider          GModelOptionsProvider = EUnrealMCPProvider::Anthropic;
+
+static TArray<FString> GetDefaultModelsForProvider(EUnrealMCPProvider Provider)
+{
+    switch (Provider)
+    {
+    case EUnrealMCPProvider::Anthropic:
+        return { TEXT("claude-opus-4-5"), TEXT("claude-sonnet-4-5"),
+                 TEXT("claude-3-5-sonnet-latest"), TEXT("claude-3-5-haiku-latest") };
+    case EUnrealMCPProvider::OpenAI:
+        return { TEXT("gpt-4o"), TEXT("gpt-4o-mini"), TEXT("gpt-4-turbo"), TEXT("gpt-3.5-turbo") };
+    case EUnrealMCPProvider::Google:
+        return { TEXT("gemini-2.0-flash"), TEXT("gemini-2.0-flash-lite"),
+                 TEXT("gemini-1.5-pro"), TEXT("gemini-1.5-flash") };
+    case EUnrealMCPProvider::Ollama:
+        return {};   // populated at runtime via REST
+    default:
+        return {};
+    }
+}
+
+static void RebuildModelOptions(EUnrealMCPProvider Provider, const TArray<FString>& Models)
+{
+    GModelOptions.Empty();
+    GModelOptionsProvider = Provider;
+    for (const FString& M : Models)
+    {
+        GModelOptions.Add(MakeShared<FString>(M));
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 TSharedRef<IDetailCustomization> FUnrealMCPEditorSettingsCustomization::MakeInstance()
 {
     return MakeShareable(new FUnrealMCPEditorSettingsCustomization);
@@ -27,78 +62,113 @@ void FUnrealMCPEditorSettingsCustomization::CustomizeDetails(IDetailLayoutBuilde
 {
     CachedDetailBuilder = &DetailBuilder;
 
-    // ─── Hook Provider change → force panel rebuild ───
+    const UUnrealMCPEditorSettings* Settings = GetDefault<UUnrealMCPEditorSettings>();
+    EUnrealMCPProvider CurrentProvider = Settings ? Settings->Provider : EUnrealMCPProvider::Anthropic;
+
+    // ── Rebuild static list if provider changed ──
+    if (GModelOptionsProvider != CurrentProvider || GModelOptions.IsEmpty())
+    {
+        RebuildModelOptions(CurrentProvider, GetDefaultModelsForProvider(CurrentProvider));
+    }
+
+    // ── Hook Provider change → force panel rebuild + reset model list ──
     TSharedRef<IPropertyHandle> ProviderProp = DetailBuilder.GetProperty(
         GET_MEMBER_NAME_CHECKED(UUnrealMCPEditorSettings, Provider));
 
     ProviderProp->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([this]()
     {
+        const UUnrealMCPEditorSettings* S = GetDefault<UUnrealMCPEditorSettings>();
+        if (S)
+        {
+            RebuildModelOptions(S->Provider, GetDefaultModelsForProvider(S->Provider));
+        }
         if (CachedDetailBuilder)
         {
             CachedDetailBuilder->ForceRefreshDetails();
         }
     }));
 
-    // ─── Hide/show ApiKey vs OllamaServerUrl ───
-    TSharedRef<IPropertyHandle> ApiKeyProp      = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UUnrealMCPEditorSettings, ApiKey));
-    TSharedRef<IPropertyHandle> OllamaUrlProp   = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UUnrealMCPEditorSettings, OllamaServerUrl));
-    TSharedRef<IPropertyHandle> ModelNameProp   = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UUnrealMCPEditorSettings, ModelName));
+    // ── Hide/show ApiKey vs OllamaServerUrl ──
+    bool bIsOllama = (CurrentProvider == EUnrealMCPProvider::Ollama);
+    TSharedRef<IPropertyHandle> ApiKeyProp    = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UUnrealMCPEditorSettings, ApiKey));
+    TSharedRef<IPropertyHandle> OllamaUrlProp = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UUnrealMCPEditorSettings, OllamaServerUrl));
+    TSharedRef<IPropertyHandle> ModelNameProp = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UUnrealMCPEditorSettings, ModelName));
 
-    // Determine current visibility
-    bool bIsOllama = (GetDefault<UUnrealMCPEditorSettings>()->Provider == EUnrealMCPProvider::Ollama);
+    if (bIsOllama)   DetailBuilder.HideProperty(ApiKeyProp);
+    else             DetailBuilder.HideProperty(OllamaUrlProp);
 
-    // Hide the one not in use
-    if (bIsOllama)
-    {
-        DetailBuilder.HideProperty(ApiKeyProp);
-    }
-    else
-    {
-        DetailBuilder.HideProperty(OllamaUrlProp);
-    }
-
-    // ─── Hide ModelName default row so we can rebuild it with the Refresh button ───
+    // ── Hide default ModelName row — replaced with our ComboBox ──
     DetailBuilder.HideProperty(ModelNameProp);
 
     IDetailCategoryBuilder& Category = DetailBuilder.EditCategory("AI Configuration");
 
-    // ─── ModelName row with inline Refresh button ───
-    Category.AddCustomRow(FText::FromString("Model Name"))
+    // ── Make sure current value is in the list ──
+    FString CurrentModel = Settings ? Settings->ModelName : TEXT("");
+    bool bCurrentInList = GModelOptions.ContainsByPredicate(
+        [&](const TSharedPtr<FString>& S){ return S.IsValid() && *S == CurrentModel; });
+    if (!CurrentModel.IsEmpty() && !bCurrentInList)
+    {
+        GModelOptions.Insert(MakeShared<FString>(CurrentModel), 0);
+    }
+
+    // ── Model dropdown row ──
+    Category.AddCustomRow(FText::FromString("Model"))
     .NameContent()
     [
         SNew(STextBlock)
-        .Text(FText::FromString("Model Name"))
+        .Text(FText::FromString("Model"))
         .Font(IDetailLayoutBuilder::GetDetailFont())
     ]
     .ValueContent()
-    .MinDesiredWidth(300.f)
+    .MinDesiredWidth(320.f)
     [
         SNew(SHorizontalBox)
-        // The actual text field proxied from property
         + SHorizontalBox::Slot()
         .FillWidth(1.f)
         [
-            ModelNameProp->CreatePropertyValueWidget()
+            SNew(SComboBox<TSharedPtr<FString>>)
+            .OptionsSource(&GModelOptions)
+            .InitiallySelectedItem(GModelOptions.FindByPredicate(
+                [&](const TSharedPtr<FString>& S){ return S.IsValid() && *S == CurrentModel; })
+                ? *GModelOptions.FindByPredicate([&](const TSharedPtr<FString>& S){ return S.IsValid() && *S == CurrentModel; })
+                : (GModelOptions.Num() > 0 ? GModelOptions[0] : nullptr))
+            .OnSelectionChanged_Lambda([ModelNameProp](TSharedPtr<FString> Item, ESelectInfo::Type)
+            {
+                if (Item.IsValid())
+                {
+                    ModelNameProp->SetValue(*Item);
+                }
+            })
+            .OnGenerateWidget_Lambda([](TSharedPtr<FString> Item) -> TSharedRef<SWidget>
+            {
+                return SNew(STextBlock)
+                    .Text(FText::FromString(Item.IsValid() ? *Item : TEXT("")));
+            })
+            [
+                SNew(STextBlock)
+                .Text_Lambda([CurrentModel]() { return FText::FromString(CurrentModel); })
+            ]
         ]
-        // Refresh button
         + SHorizontalBox::Slot()
         .AutoWidth()
         .Padding(4.f, 0.f, 0.f, 0.f)
         .VAlign(VAlign_Center)
         [
             SNew(SButton)
-            .Text(FText::FromString(bIsOllama ? "↻ Load Models" : "↻ Refresh"))
-            .ToolTipText(FText::FromString("Fetch available models from the selected provider."))
+            .Text(FText::FromString(bIsOllama ? TEXT("↻ Load") : TEXT("↻")))
+            .ToolTipText(FText::FromString(bIsOllama
+                ? TEXT("Fetch available models from your Ollama server.")
+                : TEXT("Show available models for this provider.")))
             .OnClicked(this, &FUnrealMCPEditorSettingsCustomization::OnRefreshModelsClicked)
         ]
     ];
 
-    // ─── Test Connection row ───
+    // ── Test Connection row ──
     Category.AddCustomRow(FText::FromString("Test Connection"))
     .NameContent()
     [
         SNew(STextBlock)
-        .Text(FText::FromString("Connection Test"))
+        .Text(FText::FromString("Connection"))
         .Font(IDetailLayoutBuilder::GetDetailFont())
     ]
     .ValueContent()
@@ -120,43 +190,30 @@ FReply FUnrealMCPEditorSettingsCustomization::OnRefreshModelsClicked()
 
     if (bIsOllama)
     {
-        // Call Ollama REST API directly — no Python agent needed
-        FString OllamaTagsUrl = Settings->OllamaServerUrl / TEXT("api/tags");
-        // FString "/" operator may not work for URLs, build manually
-        OllamaTagsUrl = Settings->OllamaServerUrl;
-        if (!OllamaTagsUrl.EndsWith(TEXT("/")))
-        {
-            OllamaTagsUrl += TEXT("/");
-        }
+        FString OllamaTagsUrl = Settings->OllamaServerUrl;
+        if (!OllamaTagsUrl.EndsWith(TEXT("/"))) OllamaTagsUrl += TEXT("/");
         OllamaTagsUrl += TEXT("api/tags");
 
         TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
         Req->SetURL(OllamaTagsUrl);
         Req->SetVerb(TEXT("GET"));
         Req->OnProcessRequestComplete().BindLambda(
-            [](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOK)
+            [this](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOK)
             {
                 if (!bOK || !Resp.IsValid() || Resp->GetResponseCode() != 200)
                 {
-                    FMessageDialog::Open(EAppMsgType::Ok,
-                        FText::FromString(FString::Printf(
-                            TEXT("Could not reach Ollama (HTTP %d).\nMake sure Ollama is running at the configured URL."),
-                            Resp.IsValid() ? Resp->GetResponseCode() : 0)));
+                    FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(
+                        TEXT("Could not reach Ollama. Check the Server URL in settings.")));
                     return;
                 }
                 TSharedPtr<FJsonObject> Json;
                 TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
-                if (!FJsonSerializer::Deserialize(Reader, Json) || !Json.IsValid())
-                {
-                    FMessageDialog::Open(EAppMsgType::Ok, FText::FromString("Failed to parse Ollama response."));
-                    return;
-                }
+                if (!FJsonSerializer::Deserialize(Reader, Json) || !Json.IsValid()) return;
 
-                // Ollama /api/tags returns { "models": [ { "name": "llama3:latest", ... }, ... ] }
                 const TArray<TSharedPtr<FJsonValue>>* ModelsPtr = nullptr;
-                if (Json->TryGetArrayField(TEXT("models"), ModelsPtr) && ModelsPtr && ModelsPtr->Num() > 0)
+                TArray<FString> Names;
+                if (Json->TryGetArrayField(TEXT("models"), ModelsPtr) && ModelsPtr)
                 {
-                    TArray<FString> Names;
                     for (const TSharedPtr<FJsonValue>& M : *ModelsPtr)
                     {
                         const TSharedPtr<FJsonObject>* Obj;
@@ -169,38 +226,33 @@ FReply FUnrealMCPEditorSettingsCustomization::OnRefreshModelsClicked()
                             }
                         }
                     }
-                    FString List = FString::Join(Names, TEXT("\n"));
-                    FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(
-                        FString::Printf(TEXT("Available Ollama Models:\n\n%s\n\nCopy and paste one into the Model Name field."), *List)));
                 }
-                else
+
+                if (Names.IsEmpty())
                 {
                     FMessageDialog::Open(EAppMsgType::Ok,
-                        FText::FromString("Ollama is running but has no models installed.\nRun: ollama pull llama3"));
+                        FText::FromString(TEXT("Ollama is running but has no models.\nRun: ollama pull <modelname>")));
+                    return;
+                }
+
+                // Update static cache and rebuild the panel
+                RebuildModelOptions(EUnrealMCPProvider::Ollama, Names);
+                if (CachedDetailBuilder)
+                {
+                    CachedDetailBuilder->ForceRefreshDetails();
                 }
             });
         Req->ProcessRequest();
     }
     else
     {
-        // For cloud providers we show a hardcoded list of popular models
-        FString Models;
-        switch (Settings->Provider)
+        // For cloud providers just refresh from hardcoded list
+        const UUnrealMCPEditorSettings* S = GetDefault<UUnrealMCPEditorSettings>();
+        if (S)
         {
-        case EUnrealMCPProvider::Anthropic:
-            Models = TEXT("claude-opus-4-5\nclaude-sonnet-4-5\nclaude-3-5-sonnet-latest\nclaude-3-5-haiku-latest");
-            break;
-        case EUnrealMCPProvider::OpenAI:
-            Models = TEXT("gpt-4o\ngpt-4o-mini\ngpt-4-turbo\ngpt-3.5-turbo");
-            break;
-        case EUnrealMCPProvider::Google:
-            Models = TEXT("gemini-2.0-flash\ngemini-2.0-flash-lite\ngemini-1.5-pro\ngemini-1.5-flash");
-            break;
-        default:
-            break;
+            RebuildModelOptions(S->Provider, GetDefaultModelsForProvider(S->Provider));
+            if (CachedDetailBuilder) CachedDetailBuilder->ForceRefreshDetails();
         }
-        FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(
-            FString::Printf(TEXT("Common models for this provider:\n\n%s\n\nCopy and paste one into the Model Name field."), *Models)));
     }
 
     return FReply::Handled();
@@ -246,7 +298,7 @@ FReply FUnrealMCPEditorSettingsCustomization::OnTestConnectionClicked()
             {
                 ResultText = bOK
                     ? FString::Printf(TEXT("HTTP %d — Is the Python agent running?"), Resp.IsValid() ? Resp->GetResponseCode() : 0)
-                    : TEXT("Could not reach agent. Open 'Tools → Unreal AI Agent' first to auto-start it.");
+                    : TEXT("Could not reach agent. Open 'Tools → Unreal AI Agent' to start it.");
             }
             FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(ResultText));
         });
@@ -270,3 +322,4 @@ EVisibility FUnrealMCPEditorSettingsCustomization::GetOllamaUrlVisibility() cons
 }
 
 #endif
+
