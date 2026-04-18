@@ -25,12 +25,13 @@ public:
 	TArray<FString> GetRecentLogs() const;
 	void ClearLogs();
 
+	/** Starts unreal_mcp_agent.py if not already running. Can be called externally (e.g. from Settings). */
+	void EnsureAgentRunning();
+
 private:
 	void RegisterMenus();
 	TSharedRef<SDockTab> OnSpawnChatTab(const FSpawnTabArgs& SpawnTabArgs);
 
-	/** Starts unreal_mcp_agent.py if not already running. */
-	void EnsureAgentRunning();
 	/** Kills the agent process on shutdown. */
 	void StopAgent();
 

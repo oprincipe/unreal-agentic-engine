@@ -1,6 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/World.h"
+#include "TimerManager.h"
 
 #if WITH_EDITOR
 #include "IDetailCustomization.h"
@@ -12,19 +14,16 @@ class FUnrealMCPEditorSettingsCustomization : public IDetailCustomization
 {
 public:
     static TSharedRef<IDetailCustomization> MakeInstance();
-
-    // IDetailCustomization interface
     virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
 private:
     FReply OnTestConnectionClicked();
     FReply OnRefreshModelsClicked();
 
-    /** Returns whether the API Key row should be visible (i.e. provider != Ollama). */
-    EVisibility GetApiKeyVisibility()      const;
-    /** Returns whether the Ollama URL row should be visible (provider == Ollama). */
-    EVisibility GetOllamaUrlVisibility()   const;
+    EVisibility GetApiKeyVisibility()    const;
+    EVisibility GetOllamaUrlVisibility() const;
 
     IDetailLayoutBuilder* CachedDetailBuilder = nullptr;
+    FTimerHandle          TestConnectionTimerHandle;
 };
 #endif

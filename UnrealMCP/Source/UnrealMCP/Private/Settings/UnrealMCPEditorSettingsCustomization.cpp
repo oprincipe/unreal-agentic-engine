@@ -2,6 +2,7 @@
 
 #if WITH_EDITOR
 #include "Settings/UnrealMCPEditorSettings.h"
+#include "EpicUnrealMCPModule.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
@@ -263,46 +264,87 @@ FReply FUnrealMCPEditorSettingsCustomization::OnTestConnectionClicked()
     const UUnrealMCPEditorSettings* Settings = GetDefault<UUnrealMCPEditorSettings>();
     if (!Settings) return FReply::Handled();
 
+    // ─── Ollama: test directly against the local REST API, no Python agent needed ───
+    if (Settings->Provider == EUnrealMCPProvider::Ollama)
+    {
+        FString VersionUrl = Settings->OllamaServerUrl;
+        if (!VersionUrl.EndsWith(TEXT("/"))) VersionUrl += TEXT("/");
+        VersionUrl += TEXT("api/version");
+
+        TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+        Req->SetURL(VersionUrl);
+        Req->SetVerb(TEXT("GET"));
+        Req->OnProcessRequestComplete().BindLambda(
+            [](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOK)
+            {
+                if (bOK && Resp.IsValid() && Resp->GetResponseCode() == 200)
+                {
+                    FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(
+                        FString::Printf(TEXT("✅ Ollama is reachable!\n\n%s"), *Resp->GetContentAsString())));
+                }
+                else
+                {
+                    FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(
+                        TEXT("❌ Could not reach Ollama.\nCheck your Server URL in the settings above.")));
+                }
+            });
+        Req->ProcessRequest();
+        return FReply::Handled();
+    }
+
+    // ─── Cloud providers: need the Python agent — auto-start it first ───
+    if (FEpicUnrealMCPModule::IsAvailable())
+    {
+        FEpicUnrealMCPModule::Get().EnsureAgentRunning();
+    }
+
     const UEnum* ProviderEnum = StaticEnum<EUnrealMCPProvider>();
     FString ProviderStr = ProviderEnum
         ? ProviderEnum->GetDisplayNameTextByValue((int64)Settings->Provider).ToString()
         : TEXT("Anthropic");
 
-    FString ApiKeyOrUrl = (Settings->Provider == EUnrealMCPProvider::Ollama)
-        ? Settings->OllamaServerUrl
-        : Settings->ApiKey;
-
     FString JsonBody = FString::Printf(
         TEXT("{\"provider\":\"%s\",\"api_key\":\"%s\",\"model\":\"%s\"}"),
-        *ProviderStr, *ApiKeyOrUrl, *Settings->ModelName);
+        *ProviderStr, *Settings->ApiKey, *Settings->ModelName);
 
-    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
-    Req->SetURL(TEXT("http://127.0.0.1:55558/test"));
-    Req->SetVerb(TEXT("POST"));
-    Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
-    Req->SetContentAsString(JsonBody);
-    Req->OnProcessRequestComplete().BindLambda(
-        [](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOK)
-        {
-            FString ResultText;
-            if (bOK && Resp.IsValid() && Resp->GetResponseCode() == 200)
+    // Delay 2 seconds to let the Python process boot before hitting it
+    FTimerDelegate TimerDel;
+    TimerDel.BindLambda([JsonBody]()
+    {
+        TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+        Req->SetURL(TEXT("http://127.0.0.1:55558/test"));
+        Req->SetVerb(TEXT("POST"));
+        Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+        Req->SetContentAsString(JsonBody);
+        Req->OnProcessRequestComplete().BindLambda(
+            [](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOK)
             {
-                TSharedPtr<FJsonObject> Json;
-                TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
-                if (FJsonSerializer::Deserialize(Reader, Json) && Json.IsValid())
+                FString ResultText;
+                if (bOK && Resp.IsValid() && Resp->GetResponseCode() == 200)
                 {
-                    Json->TryGetStringField(TEXT("result"), ResultText);
+                    TSharedPtr<FJsonObject> Json;
+                    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
+                    if (FJsonSerializer::Deserialize(Reader, Json) && Json.IsValid())
+                    {
+                        Json->TryGetStringField(TEXT("result"), ResultText);
+                    }
                 }
-            }
-            else
-            {
-                ResultText = bOK
-                    ? FString::Printf(TEXT("HTTP %d — Is the Python agent running?"), Resp.IsValid() ? Resp->GetResponseCode() : 0)
-                    : TEXT("Could not reach agent. Open 'Tools → Unreal AI Agent' to start it.");
-            }
-            FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(ResultText));
-        });
-    Req->ProcessRequest();
+                else
+                {
+                    ResultText = bOK
+                        ? FString::Printf(TEXT("HTTP %d — Python agent returned an error."), Resp.IsValid() ? Resp->GetResponseCode() : 0)
+                        : TEXT("❌ Could not reach the Python agent after 2s.\nMake sure Python is installed and in your PATH.");
+                }
+                FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(ResultText));
+            });
+        Req->ProcessRequest();
+    });
+
+    if (GEditor)
+    {
+        GEditor->GetTimerManager()->SetTimer(
+            TestConnectionTimerHandle, TimerDel, 2.0f, /*bLoop=*/false);
+    }
 
     return FReply::Handled();
 }
