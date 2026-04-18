@@ -236,7 +236,27 @@ FString UEpicUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const T
                      CommandType == TEXT("add_blueprint_function_node") ||
                      CommandType == TEXT("connect_blueprint_nodes") ||
                      CommandType == TEXT("add_blueprint_branch_node") ||
-                     CommandType == TEXT("create_blueprint_custom_event"))
+                     CommandType == TEXT("create_blueprint_custom_event") ||
+                     CommandType == TEXT("read_blueprint_enum") ||
+                     CommandType == TEXT("read_blueprint_struct") ||
+                     CommandType == TEXT("read_blueprint_functions") ||
+                     CommandType == TEXT("read_data_asset") ||
+                     CommandType == TEXT("read_input_action") ||
+                     CommandType == TEXT("read_input_mapping_context") ||
+                     CommandType == TEXT("read_widget_variables") ||
+                     CommandType == TEXT("read_savegame_blueprint") ||
+                     CommandType == TEXT("read_material") ||
+                     CommandType == TEXT("read_blueprint_macros") ||
+                     CommandType == TEXT("read_sound_class") ||
+                     CommandType == TEXT("get_actors_in_level") ||
+                     CommandType == TEXT("spawn_actor") ||
+                     CommandType == TEXT("destroy_actor") ||
+                     CommandType == TEXT("set_actor_transform") ||
+                     CommandType == TEXT("start_play_in_editor") ||
+                     CommandType == TEXT("stop_play_in_editor") ||
+                     CommandType == TEXT("get_editor_logs") ||
+                     CommandType == TEXT("create_material_instance") ||
+                     CommandType == TEXT("duplicate_asset"))
             {
                 ResultJson = BlueprintCommands->HandleCommand(CommandType, Params);
             }

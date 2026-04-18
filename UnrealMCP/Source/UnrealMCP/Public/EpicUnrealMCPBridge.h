@@ -1,6 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/Object.h"
 #include "EditorSubsystem.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"

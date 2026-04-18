@@ -29,13 +29,15 @@ public class UnrealMCP : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"InputCore",
+				"EnhancedInput",
 				"Networking",
 				"Sockets",
 				"HTTP",
 				"Json",
 				"JsonUtilities",
 				"DeveloperSettings",
-				"PhysicsCore"
+				"PhysicsCore",
+				"UMG"
 			}
 		);
 		
@@ -51,7 +53,8 @@ public class UnrealMCP : ModuleRules
 				"KismetCompiler",
 				"BlueprintGraph",
 				"Projects",
-				"AssetRegistry"
+				"AssetRegistry",
+				"AssetTools"
 			}
 		);
 		

@@ -21,24 +21,20 @@ Check out these examples of the MCP server in action on our channel:
 
 ## Featured Capabilities
 
+### Blueprint Introspection & Analysis
 ```bash
-# Create a massive futuristic city with skyscrapers, flying cars, and advanced infrastructure
-> "Build a massive futuristic city with towering skyscrapers"
-→ create_town(town_size="massive", architectural_style="futuristic", building_density=0.95, include_advanced_features=true)
+# Read variables, structs, inputs, enums and functions from any Blueprint
+> "Show me the variables inside the GameplaySettings Blueprint"
+→ read_blueprint_functions(blueprint_path="/Game/Blueprints/BP_GameplaySettings")
 ```
 
-### Advanced Structures  
+### World Manipulation & Editor Control
 ```bash
-# Build complex multi-room houses with windows, doors, and roofs
-> "Create a Victorian mansion complex with east and west wing houses."
-→ construct_house(house_style="mansion", width=1500, height=900)
-```
-
-### Intelligent Mazes
-```bash
-# Generate solvable mazes with guaranteed paths using recursive backtracking
-> "Make a 15x15 maze with high walls"
-→ create_maze(rows=15, cols=15, wall_height=4, cell_size=250)
+# Spawn actors, control Play-in-Editor (PIE) and read engine logs
+> "Place a crate at the center of the room and play the game"
+→ spawn_actor(class_path="/Game/Blueprints/BP_Crate", location_x=0.0, location_y=0.0, location_z=0.0)
+→ start_play_in_editor()
+→ get_editor_logs() # Intercept live errors from the engine!
 ```
 
 ---
@@ -47,11 +43,13 @@ Check out these examples of the MCP server in action on our channel:
 
 | **Category** | **Tools** | **Description** |
 |--------------|-----------|-----------------|
-| **World Building** | `create_town`, `construct_house`, `create_tower`, `create_arch` | Build complex architectural structures and entire settlements |
+| **World Building** | `create_town`, `construct_house`, `create_tower`, `create_arch` | Build complex architectural structures and settlements |
 | **Level Design** | `create_maze`, `create_obstacle_course`, `create_pyramid`, `create_wall` | Design challenging game levels and puzzles |
-| **Physics & Materials** | `spawn_physics_blueprint_actor `, `set_physics_properties` | Create realistic physics simulations |
-| **Blueprint System** | `create_blueprint`, `compile_blueprint`, `add_component_to_blueprint` | Visual scripting and custom actor creation |
-| **Actor Management** | `spawn_actor`, `delete_actor`, `set_actor_transform`, `find_actors_by_name` | Precise control over scene objects |
+| **Physics & Materials** | `spawn_physics_blueprint_actor`, `set_physics_properties`, `create_material_instance` | Physics simulations and material assignments |
+| **Asset Management** | `duplicate_asset`, `read_data_asset`, `read_input_action` | Manipulate and read existing project assets |
+| **Blueprint Introspection** | `read_blueprint_struct`, `read_blueprint_functions`, `read_blueprint_enum` | Fully analyze internal blueprint logic and variables |
+| **Actor & Scene Control** | `get_actors_in_level`, `spawn_actor`, `destroy_actor`, `set_actor_transform` | Precise control over scene objects and transforms |
+| **Editor Pipeline** | `start_play_in_editor`, `stop_play_in_editor`, `get_editor_logs` | Run games & capture engine logs via AI |
 
 ---
 
@@ -67,14 +65,12 @@ Check out these examples of the MCP server in action on our channel:
 **Option A: Use the Pre-Built Project (Recommended for Quick Start)**
 ```bash
 # Clone the repository
-git clone https://github.com/flopperam/unreal-engine-mcp.git
+git clone https://github.com/oprincipe/unreal-engine-mcp.git
 cd unreal-engine-mcp
 
 # Open the pre-configured project
 # Double-click FlopperamUnrealMCP/FlopperamUnrealMCP.uproject
 # or open it through Unreal Engine launcher
-
-# The plugin is already installed and enabled!
 ```
 
 **Option B: Add Plugin to Your Existing Project**
@@ -88,18 +84,19 @@ Edit → Plugins → Search "UnrealMCP" → Enable → Restart Editor
 
 **Option C: Install for All Projects**
 ```bash
-# Copy to Engine plugins folder (available to all projects)
+# Copy to Engine plugins folder
 cp -r UnrealMCP/ "C:/Program Files/Epic Games/UE_5.5/Engine/Plugins/"
-
-# Enable in any project through the Plugin Browser
-Edit → Plugins → Search "UnrealMCP" → Enable
 ```
 
 ### 2. Launch the MCP Server
 
 ```bash
 cd Python
+# Basic generative tools
 uv run unreal_mcp_server_advanced.py
+
+# OR - Full Blueprint, Editor Control, and Introspection capabilities
+uv run unreal_mcp_server_blueprints.py
 ```
 
 ### 3. Configure Your AI Client
@@ -119,7 +116,7 @@ Add this to your MCP configuration:
         "--directory", 
         "/path/to/unreal-engine-mcp/Python",
         "run", 
-        "unreal_mcp_server_advanced.py"
+        "unreal_mcp_server_blueprints.py"
       ]
     }
   }
@@ -132,7 +129,7 @@ Add this to your MCP configuration:
 
 Claude has proven to be the most effective AI model for:
 - Understanding complex 3D spatial relationships
-- Generating accurate MCP tool calls
+- Analyzing Blueprint structures and identifying engine workflows
 - Following architectural and physics constraints
 - Creating coherent multi-step building processes
 

@@ -33,6 +33,23 @@
 #include "Engine/UserDefinedEnum.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+// New tool includes
+#include "Engine/DataAsset.h"
+#include "InputAction.h"
+#include "InputMappingContext.h"
+#include "GameFramework/SaveGame.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialInstance.h"
+#include "Sound/SoundClass.h"
+#include "Sound/SoundMix.h"
+#include "Sound/SoundBase.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EngineUtils.h"
+#include "EpicUnrealMCPModule.h"
+#include "AssetToolsModule.h"
+#include "IAssetTools.h"
+#include "Materials/MaterialInstanceConstant.h"
 
 FEpicUnrealMCPBlueprintCommands::FEpicUnrealMCPBlueprintCommands()
 {
@@ -91,6 +108,86 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleCommand(const FSt
     else if (CommandType == TEXT("create_blueprint_custom_event"))
     {
         return HandleCreateBlueprintCustomEvent(Params);
+    }
+    else if (CommandType == TEXT("read_blueprint_enum"))
+    {
+        return HandleReadBlueprintEnum(Params);
+    }
+    else if (CommandType == TEXT("read_blueprint_struct"))
+    {
+        return HandleReadBlueprintStruct(Params);
+    }
+    else if (CommandType == TEXT("read_blueprint_functions"))
+    {
+        return HandleReadBlueprintFunctions(Params);
+    }
+    else if (CommandType == TEXT("read_data_asset"))
+    {
+        return HandleReadDataAsset(Params);
+    }
+    else if (CommandType == TEXT("read_input_action"))
+    {
+        return HandleReadInputAction(Params);
+    }
+    else if (CommandType == TEXT("read_input_mapping_context"))
+    {
+        return HandleReadInputMappingContext(Params);
+    }
+    else if (CommandType == TEXT("read_widget_variables"))
+    {
+        return HandleReadWidgetVariables(Params);
+    }
+    else if (CommandType == TEXT("read_savegame_blueprint"))
+    {
+        return HandleReadSaveGameBlueprint(Params);
+    }
+    else if (CommandType == TEXT("read_material"))
+    {
+        return HandleReadMaterial(Params);
+    }
+    else if (CommandType == TEXT("read_blueprint_macros"))
+    {
+        return HandleReadBlueprintMacros(Params);
+    }
+    else if (CommandType == TEXT("read_sound_class"))
+    {
+        return HandleReadSoundClass(Params);
+    }
+    else if (CommandType == TEXT("get_actors_in_level"))
+    {
+        return HandleGetActorsInLevel(Params);
+    }
+    else if (CommandType == TEXT("spawn_actor"))
+    {
+        return HandleSpawnActor(Params);
+    }
+    else if (CommandType == TEXT("destroy_actor"))
+    {
+        return HandleDestroyActor(Params);
+    }
+    else if (CommandType == TEXT("set_actor_transform"))
+    {
+        return HandleSetActorTransform(Params);
+    }
+    else if (CommandType == TEXT("start_play_in_editor"))
+    {
+        return HandleStartPlayInEditor(Params);
+    }
+    else if (CommandType == TEXT("stop_play_in_editor"))
+    {
+        return HandleStopPlayInEditor(Params);
+    }
+    else if (CommandType == TEXT("get_editor_logs"))
+    {
+        return HandleGetEditorLogs(Params);
+    }
+    else if (CommandType == TEXT("create_material_instance"))
+    {
+        return HandleCreateMaterialInstance(Params);
+    }
+    else if (CommandType == TEXT("duplicate_asset"))
+    {
+        return HandleDuplicateAsset(Params);
     }
     
     return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Unknown blueprint command: %s"), *CommandType));
@@ -207,23 +304,23 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleAddComponentToBlu
 
     UClass* ComponentClass = nullptr;
 
-    ComponentClass = FindObject<UClass>(ANY_PACKAGE, *ComponentType);
+    ComponentClass = FindObject<UClass>(nullptr, *ComponentType);
 
     if (!ComponentClass && !ComponentType.EndsWith(TEXT("Component")))
     {
         FString ComponentTypeWithSuffix = ComponentType + TEXT("Component");
-        ComponentClass = FindObject<UClass>(ANY_PACKAGE, *ComponentTypeWithSuffix);
+        ComponentClass = FindObject<UClass>(nullptr, *ComponentTypeWithSuffix);
     }
 
     if (!ComponentClass && !ComponentType.StartsWith(TEXT("U")))
     {
         FString ComponentTypeWithPrefix = TEXT("U") + ComponentType;
-        ComponentClass = FindObject<UClass>(ANY_PACKAGE, *ComponentTypeWithPrefix);
+        ComponentClass = FindObject<UClass>(nullptr, *ComponentTypeWithPrefix);
 
         if (!ComponentClass && !ComponentType.EndsWith(TEXT("Component")))
         {
             FString ComponentTypeWithBoth = TEXT("U") + ComponentType + TEXT("Component");
-            ComponentClass = FindObject<UClass>(ANY_PACKAGE, *ComponentTypeWithBoth);
+            ComponentClass = FindObject<UClass>(nullptr, *ComponentTypeWithBoth);
         }
     }
 
@@ -662,7 +759,7 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleCreateBlueprintVa
     else
     {
         PinType.PinCategory = UEdGraphSchema_K2::PC_Object;
-        UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, *VariableType);
+        UClass* FoundClass = FindObject<UClass>(nullptr, *VariableType);
         if (FoundClass)
         {
             PinType.PinSubCategoryObject = FoundClass;
@@ -860,7 +957,7 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleAddBlueprintFunct
 
     if (!FunctionClass.IsEmpty())
     {
-        UClass* TargetClass = FindObject<UClass>(ANY_PACKAGE, *FunctionClass);
+        UClass* TargetClass = FindObject<UClass>(nullptr, *FunctionClass);
         if (TargetClass)
         {
             Function = TargetClass->FindFunctionByName(*FunctionName);
@@ -1091,7 +1188,7 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleCreateBlueprintCu
                         else
                         {
                             NewParam.VarType.PinCategory = UEdGraphSchema_K2::PC_Object;
-                            UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, *ParamType);
+                            UClass* FoundClass = FindObject<UClass>(nullptr, *ParamType);
                             if (FoundClass)
                             {
                                 NewParam.VarType.PinSubCategoryObject = FoundClass;
@@ -1116,5 +1213,799 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleCreateBlueprintCu
     ResultObj->SetStringField(TEXT("node_id"), CustomEventNode->NodeGuid.ToString());
     ResultObj->SetBoolField(TEXT("success"), true);
 
+    return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleReadBlueprintEnum(const TSharedPtr<FJsonObject>& Params)
+{
+    FString EnumPath;
+    if (!Params->TryGetStringField(TEXT("enum_path"), EnumPath))
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'enum_path' parameter"));
+    }
+
+    UUserDefinedEnum* Enum = Cast<UUserDefinedEnum>(UEditorAssetLibrary::LoadAsset(EnumPath));
+    if (!Enum)
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Failed to load UserDefinedEnum at path: %s"), *EnumPath));
+    }
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("enum_path"), EnumPath);
+    ResultObj->SetStringField(TEXT("enum_name"), Enum->GetName());
+
+    int32 NumEnums = Enum->NumEnums();
+    TArray<TSharedPtr<FJsonValue>> EnumValuesArray;
+
+    // Generally, Enum->NumEnums() includes the _MAX value.
+    // We iterate through all of them and exclude anything ending in _MAX.
+    for (int32 i = 0; i < NumEnums; i++)
+    {
+        FString EnumNameStr = Enum->GetNameStringByIndex(i);
+        if (EnumNameStr.EndsWith(TEXT("_MAX")))
+            continue;
+
+        FString DisplayNameStr = Enum->GetDisplayNameTextByIndex(i).ToString();
+
+        TSharedPtr<FJsonObject> EnumValueObj = MakeShared<FJsonObject>();
+        EnumValueObj->SetNumberField(TEXT("index"), i);
+        EnumValueObj->SetStringField(TEXT("name"), EnumNameStr);
+        EnumValueObj->SetStringField(TEXT("display_name"), DisplayNameStr);
+
+        EnumValuesArray.Add(MakeShared<FJsonValueObject>(EnumValueObj));
+    }
+
+    ResultObj->SetArrayField(TEXT("values"), EnumValuesArray);
+    ResultObj->SetBoolField(TEXT("success"), true);
+
+    return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleReadBlueprintStruct(const TSharedPtr<FJsonObject>& Params)
+{
+    FString StructPath;
+    if (!Params->TryGetStringField(TEXT("struct_path"), StructPath))
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'struct_path' parameter"));
+    }
+
+    UUserDefinedStruct* Struct = Cast<UUserDefinedStruct>(UEditorAssetLibrary::LoadAsset(StructPath));
+    if (!Struct)
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Failed to load UserDefinedStruct at path: %s"), *StructPath));
+    }
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("struct_path"), StructPath);
+    ResultObj->SetStringField(TEXT("struct_name"), Struct->GetName());
+
+    TArray<TSharedPtr<FJsonValue>> VariablesArray;
+
+    for (TFieldIterator<FProperty> It(Struct); It; ++It)
+    {
+        FProperty* Property = *It;
+        
+        TSharedPtr<FJsonObject> VarObj = MakeShared<FJsonObject>();
+        // Get user friendly name or variable name
+        VarObj->SetStringField(TEXT("name"), Property->GetAuthoredName());
+        VarObj->SetStringField(TEXT("cpp_type"), Property->GetCPPType());
+        VarObj->SetStringField(TEXT("class_type"), Property->GetClass()->GetName());
+
+        VariablesArray.Add(MakeShared<FJsonValueObject>(VarObj));
+    }
+
+    ResultObj->SetArrayField(TEXT("variables"), VariablesArray);
+    ResultObj->SetBoolField(TEXT("success"), true);
+
+    return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleReadBlueprintFunctions(const TSharedPtr<FJsonObject>& Params)
+{
+    FString BlueprintPath;
+    if (!Params->TryGetStringField(TEXT("blueprint_path"), BlueprintPath))
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'blueprint_path' parameter"));
+    }
+
+    UBlueprint* Blueprint = Cast<UBlueprint>(UEditorAssetLibrary::LoadAsset(BlueprintPath));
+    if (!Blueprint)
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Failed to load Blueprint at path: %s"), *BlueprintPath));
+    }
+
+    UClass* GenClass = Blueprint->GeneratedClass;
+    if (!GenClass)
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Blueprint does not have a GeneratedClass (might need compilation)"));
+    }
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("blueprint_path"), BlueprintPath);
+    ResultObj->SetStringField(TEXT("blueprint_name"), Blueprint->GetName());
+
+    TArray<TSharedPtr<FJsonValue>> FunctionsArray;
+
+    for (TFieldIterator<UFunction> FuncIt(GenClass, EFieldIteratorFlags::ExcludeSuper); FuncIt; ++FuncIt)
+    {
+        UFunction* Function = *FuncIt;
+        FString FuncName = Function->GetName();
+
+        // Skip internal/compiler-generated functions
+        if (FuncName.StartsWith(TEXT("ExecuteUbergraph_")) || FuncName.StartsWith(TEXT("BndEvt__")) || FuncName.StartsWith(TEXT("UserConstructionScript")))
+        {
+            continue;
+        }
+
+        TSharedPtr<FJsonObject> FuncObj = MakeShared<FJsonObject>();
+        FuncObj->SetStringField(TEXT("name"), FuncName);
+
+        TArray<TSharedPtr<FJsonValue>> InputsArray;
+        TArray<TSharedPtr<FJsonValue>> OutputsArray;
+
+        for (TFieldIterator<FProperty> PropIt(Function); PropIt; ++PropIt)
+        {
+            FProperty* Param = *PropIt;
+            if (!Param->HasAnyPropertyFlags(CPF_Parm)) continue;
+
+            bool bIsReturn = Param->HasAnyPropertyFlags(CPF_ReturnParm);
+            bool bIsOut = Param->HasAnyPropertyFlags(CPF_OutParm);
+            
+            // If it's an out param, it's typically an output (unless it's a pass-by-reference input, but blueprint usually surfaces this as both or reference)
+            bool bIsOutput = bIsReturn || (bIsOut && !Param->HasAnyPropertyFlags(CPF_ReferenceParm));
+
+            TSharedPtr<FJsonObject> ParamObj = MakeShared<FJsonObject>();
+            ParamObj->SetStringField(TEXT("name"), Param->GetAuthoredName());
+            ParamObj->SetStringField(TEXT("cpp_type"), Param->GetCPPType());
+            ParamObj->SetStringField(TEXT("class_type"), Param->GetClass()->GetName());
+
+            if (bIsOutput)
+            {
+                OutputsArray.Add(MakeShared<FJsonValueObject>(ParamObj));
+            }
+            else
+            {
+                InputsArray.Add(MakeShared<FJsonValueObject>(ParamObj));
+            }
+        }
+
+        FuncObj->SetArrayField(TEXT("inputs"), InputsArray);
+        FuncObj->SetArrayField(TEXT("outputs"), OutputsArray);
+        FunctionsArray.Add(MakeShared<FJsonValueObject>(FuncObj));
+    }
+
+    ResultObj->SetArrayField(TEXT("functions"), FunctionsArray);
+    ResultObj->SetBoolField(TEXT("success"), true);
+
+    return ResultObj;
+}
+
+// ---- HandleReadDataAsset ----
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleReadDataAsset(const TSharedPtr<FJsonObject>& Params)
+{
+    FString AssetPath;
+    if (!Params->TryGetStringField(TEXT("asset_path"), AssetPath))
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'asset_path' parameter"));
+
+    UDataAsset* DataAsset = Cast<UDataAsset>(UEditorAssetLibrary::LoadAsset(AssetPath));
+    if (!DataAsset)
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Failed to load DataAsset at: %s"), *AssetPath));
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("asset_path"), AssetPath);
+    ResultObj->SetStringField(TEXT("asset_name"), DataAsset->GetName());
+    ResultObj->SetStringField(TEXT("class_name"), DataAsset->GetClass()->GetName());
+
+    TArray<TSharedPtr<FJsonValue>> PropsArray;
+    for (TFieldIterator<FProperty> It(DataAsset->GetClass()); It; ++It)
+    {
+        FProperty* Prop = *It;
+        if (Prop->HasAnyPropertyFlags(CPF_Transient | CPF_EditorOnly)) continue;
+
+        FString ValueStr;
+        const void* ValPtr = Prop->ContainerPtrToValuePtr<void>(DataAsset);
+        Prop->ExportTextItem_InContainer(ValueStr, DataAsset, nullptr, nullptr, PPF_None);
+
+        TSharedPtr<FJsonObject> PropObj = MakeShared<FJsonObject>();
+        PropObj->SetStringField(TEXT("name"), Prop->GetAuthoredName());
+        PropObj->SetStringField(TEXT("cpp_type"), Prop->GetCPPType());
+        PropObj->SetStringField(TEXT("value"), ValueStr);
+        PropsArray.Add(MakeShared<FJsonValueObject>(PropObj));
+    }
+
+    ResultObj->SetArrayField(TEXT("properties"), PropsArray);
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+// ---- HandleReadInputAction ----
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleReadInputAction(const TSharedPtr<FJsonObject>& Params)
+{
+    FString AssetPath;
+    if (!Params->TryGetStringField(TEXT("asset_path"), AssetPath))
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'asset_path' parameter"));
+
+    UInputAction* Action = Cast<UInputAction>(UEditorAssetLibrary::LoadAsset(AssetPath));
+    if (!Action)
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Failed to load InputAction at: %s"), *AssetPath));
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("asset_path"), AssetPath);
+    ResultObj->SetStringField(TEXT("action_name"), Action->GetName());
+
+    // ValueType enum: Digital=0, Axis1D=1, Axis2D=2, Axis3D=3
+    UEnum* ValueTypeEnum = StaticEnum<EInputActionValueType>();
+    FString ValueTypeStr = ValueTypeEnum ? ValueTypeEnum->GetNameStringByValue((int64)Action->ValueType) : TEXT("Unknown");
+    ResultObj->SetStringField(TEXT("value_type"), ValueTypeStr);
+    ResultObj->SetBoolField(TEXT("consume_input"), Action->bConsumeInput);
+
+    // Triggers
+    TArray<TSharedPtr<FJsonValue>> TriggersArray;
+    for (UInputTrigger* Trigger : Action->Triggers)
+    {
+        if (Trigger)
+            TriggersArray.Add(MakeShared<FJsonValueString>(Trigger->GetClass()->GetName()));
+    }
+    ResultObj->SetArrayField(TEXT("triggers"), TriggersArray);
+
+    // Modifiers
+    TArray<TSharedPtr<FJsonValue>> ModifiersArray;
+    for (UInputModifier* Modifier : Action->Modifiers)
+    {
+        if (Modifier)
+            ModifiersArray.Add(MakeShared<FJsonValueString>(Modifier->GetClass()->GetName()));
+    }
+    ResultObj->SetArrayField(TEXT("modifiers"), ModifiersArray);
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+// ---- HandleReadInputMappingContext ----
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleReadInputMappingContext(const TSharedPtr<FJsonObject>& Params)
+{
+    FString AssetPath;
+    if (!Params->TryGetStringField(TEXT("asset_path"), AssetPath))
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'asset_path' parameter"));
+
+    UInputMappingContext* IMC = Cast<UInputMappingContext>(UEditorAssetLibrary::LoadAsset(AssetPath));
+    if (!IMC)
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Failed to load InputMappingContext at: %s"), *AssetPath));
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("asset_path"), AssetPath);
+    ResultObj->SetStringField(TEXT("imc_name"), IMC->GetName());
+
+    TArray<TSharedPtr<FJsonValue>> MappingsArray;
+    for (const FEnhancedActionKeyMapping& Mapping : IMC->GetMappings())
+    {
+        TSharedPtr<FJsonObject> MappingObj = MakeShared<FJsonObject>();
+        FString ActionName = Mapping.Action.Get() ? Mapping.Action->GetName() : FString(TEXT("None"));
+        MappingObj->SetStringField(TEXT("action"), ActionName);
+        MappingObj->SetStringField(TEXT("key"), Mapping.Key.GetDisplayName().ToString());
+
+        TArray<TSharedPtr<FJsonValue>> TrigArr;
+        for (UInputTrigger* T : Mapping.Triggers)
+            if (T) TrigArr.Add(MakeShared<FJsonValueString>(T->GetClass()->GetName()));
+        MappingObj->SetArrayField(TEXT("triggers"), TrigArr);
+
+        TArray<TSharedPtr<FJsonValue>> ModArr;
+        for (UInputModifier* M : Mapping.Modifiers)
+            if (M) ModArr.Add(MakeShared<FJsonValueString>(M->GetClass()->GetName()));
+        MappingObj->SetArrayField(TEXT("modifiers"), ModArr);
+
+        MappingsArray.Add(MakeShared<FJsonValueObject>(MappingObj));
+    }
+
+    ResultObj->SetArrayField(TEXT("mappings"), MappingsArray);
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+// ---- HandleReadWidgetVariables ----
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleReadWidgetVariables(const TSharedPtr<FJsonObject>& Params)
+{
+    FString BlueprintPath;
+    if (!Params->TryGetStringField(TEXT("blueprint_path"), BlueprintPath))
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'blueprint_path' parameter"));
+
+    UBlueprint* WidgetBP = Cast<UBlueprint>(UEditorAssetLibrary::LoadAsset(BlueprintPath));
+    if (!WidgetBP)
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Failed to load WidgetBlueprint at: %s"), *BlueprintPath));
+
+    UClass* GenClass = WidgetBP->GeneratedClass;
+    if (!GenClass)
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("WidgetBlueprint has no GeneratedClass"));
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("blueprint_path"), BlueprintPath);
+    ResultObj->SetStringField(TEXT("widget_name"), WidgetBP->GetName());
+
+    TArray<TSharedPtr<FJsonValue>> VarsArray;
+    for (TFieldIterator<FProperty> It(GenClass, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+    {
+        FProperty* Prop = *It;
+        TSharedPtr<FJsonObject> VarObj = MakeShared<FJsonObject>();
+        VarObj->SetStringField(TEXT("name"), Prop->GetAuthoredName());
+        VarObj->SetStringField(TEXT("cpp_type"), Prop->GetCPPType());
+        VarObj->SetStringField(TEXT("class_type"), Prop->GetClass()->GetName());
+        VarsArray.Add(MakeShared<FJsonValueObject>(VarObj));
+    }
+
+    ResultObj->SetArrayField(TEXT("variables"), VarsArray);
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+// ---- HandleReadSaveGameBlueprint ----
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleReadSaveGameBlueprint(const TSharedPtr<FJsonObject>& Params)
+{
+    FString BlueprintPath;
+    if (!Params->TryGetStringField(TEXT("blueprint_path"), BlueprintPath))
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'blueprint_path' parameter"));
+
+    UBlueprint* BP = Cast<UBlueprint>(UEditorAssetLibrary::LoadAsset(BlueprintPath));
+    if (!BP)
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Failed to load Blueprint at: %s"), *BlueprintPath));
+
+    UClass* GenClass = BP->GeneratedClass;
+    if (!GenClass)
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Blueprint has no GeneratedClass"));
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("blueprint_path"), BlueprintPath);
+    ResultObj->SetStringField(TEXT("blueprint_name"), BP->GetName());
+
+    TArray<TSharedPtr<FJsonValue>> VarsArray;
+    for (TFieldIterator<FProperty> It(GenClass, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+    {
+        FProperty* Prop = *It;
+        // For SaveGame, we only care about SaveGame-tagged properties
+        bool bSaveGame = Prop->HasAnyPropertyFlags(CPF_SaveGame);
+        TSharedPtr<FJsonObject> VarObj = MakeShared<FJsonObject>();
+        VarObj->SetStringField(TEXT("name"), Prop->GetAuthoredName());
+        VarObj->SetStringField(TEXT("cpp_type"), Prop->GetCPPType());
+        VarObj->SetStringField(TEXT("class_type"), Prop->GetClass()->GetName());
+        VarObj->SetBoolField(TEXT("is_save_game"), bSaveGame);
+        VarsArray.Add(MakeShared<FJsonValueObject>(VarObj));
+    }
+
+    ResultObj->SetArrayField(TEXT("variables"), VarsArray);
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+// ---- HandleReadMaterial ----
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleReadMaterial(const TSharedPtr<FJsonObject>& Params)
+{
+    FString AssetPath;
+    if (!Params->TryGetStringField(TEXT("asset_path"), AssetPath))
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'asset_path' parameter"));
+
+    UMaterialInterface* MatInterface = Cast<UMaterialInterface>(UEditorAssetLibrary::LoadAsset(AssetPath));
+    if (!MatInterface)
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Failed to load Material at: %s"), *AssetPath));
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("asset_path"), AssetPath);
+    ResultObj->SetStringField(TEXT("material_name"), MatInterface->GetName());
+    ResultObj->SetStringField(TEXT("class_name"), MatInterface->GetClass()->GetName());
+
+    // Scalar parameters
+    TArray<FMaterialParameterInfo> ScalarInfos;
+    TArray<FGuid> ScalarGuids;
+    MatInterface->GetAllScalarParameterInfo(ScalarInfos, ScalarGuids);
+    TArray<TSharedPtr<FJsonValue>> ScalarsArray;
+    for (const FMaterialParameterInfo& Info : ScalarInfos)
+    {
+        float Val = 0.f;
+        MatInterface->GetScalarParameterValue(Info, Val);
+        TSharedPtr<FJsonObject> P = MakeShared<FJsonObject>();
+        P->SetStringField(TEXT("name"), Info.Name.ToString());
+        P->SetNumberField(TEXT("value"), Val);
+        ScalarsArray.Add(MakeShared<FJsonValueObject>(P));
+    }
+    ResultObj->SetArrayField(TEXT("scalar_parameters"), ScalarsArray);
+
+    // Vector parameters
+    TArray<FMaterialParameterInfo> VectorInfos;
+    TArray<FGuid> VectorGuids;
+    MatInterface->GetAllVectorParameterInfo(VectorInfos, VectorGuids);
+    TArray<TSharedPtr<FJsonValue>> VectorsArray;
+    for (const FMaterialParameterInfo& Info : VectorInfos)
+    {
+        FLinearColor Val;
+        MatInterface->GetVectorParameterValue(Info, Val);
+        TSharedPtr<FJsonObject> P = MakeShared<FJsonObject>();
+        P->SetStringField(TEXT("name"), Info.Name.ToString());
+        P->SetNumberField(TEXT("r"), Val.R);
+        P->SetNumberField(TEXT("g"), Val.G);
+        P->SetNumberField(TEXT("b"), Val.B);
+        P->SetNumberField(TEXT("a"), Val.A);
+        VectorsArray.Add(MakeShared<FJsonValueObject>(P));
+    }
+    ResultObj->SetArrayField(TEXT("vector_parameters"), VectorsArray);
+
+    // Texture parameters
+    TArray<FMaterialParameterInfo> TexInfos;
+    TArray<FGuid> TexGuids;
+    MatInterface->GetAllTextureParameterInfo(TexInfos, TexGuids);
+    TArray<TSharedPtr<FJsonValue>> TexturesArray;
+    for (const FMaterialParameterInfo& Info : TexInfos)
+    {
+        UTexture* Tex = nullptr;
+        MatInterface->GetTextureParameterValue(Info, Tex);
+        TSharedPtr<FJsonObject> P = MakeShared<FJsonObject>();
+        P->SetStringField(TEXT("name"), Info.Name.ToString());
+        P->SetStringField(TEXT("texture"), Tex ? Tex->GetPathName() : TEXT("None"));
+        TexturesArray.Add(MakeShared<FJsonValueObject>(P));
+    }
+    ResultObj->SetArrayField(TEXT("texture_parameters"), TexturesArray);
+
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+// ---- HandleReadBlueprintMacros ----
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleReadBlueprintMacros(const TSharedPtr<FJsonObject>& Params)
+{
+    FString BlueprintPath;
+    if (!Params->TryGetStringField(TEXT("blueprint_path"), BlueprintPath))
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'blueprint_path' parameter"));
+
+    UBlueprint* BP = Cast<UBlueprint>(UEditorAssetLibrary::LoadAsset(BlueprintPath));
+    if (!BP)
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Failed to load Blueprint at: %s"), *BlueprintPath));
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("blueprint_path"), BlueprintPath);
+    ResultObj->SetStringField(TEXT("blueprint_name"), BP->GetName());
+
+    TArray<TSharedPtr<FJsonValue>> MacrosArray;
+    for (UEdGraph* MacroGraph : BP->MacroGraphs)
+    {
+        if (!MacroGraph) continue;
+        TSharedPtr<FJsonObject> MacroObj = MakeShared<FJsonObject>();
+        MacroObj->SetStringField(TEXT("name"), MacroGraph->GetName());
+        MacroObj->SetNumberField(TEXT("node_count"), MacroGraph->Nodes.Num());
+
+        // Collect tunnel input/output pins from macro tunnel nodes
+        TArray<TSharedPtr<FJsonValue>> InputPins, OutputPins;
+        for (UEdGraphNode* Node : MacroGraph->Nodes)
+        {
+            if (!Node) continue;
+            FString NodeClass = Node->GetClass()->GetName();
+            if (NodeClass.Contains(TEXT("Tunnel")))
+            {
+                for (UEdGraphPin* Pin : Node->Pins)
+                {
+                    if (Pin->Direction == EGPD_Output && Pin->PinName != TEXT("then"))
+                    {
+                        TSharedPtr<FJsonObject> P = MakeShared<FJsonObject>();
+                        P->SetStringField(TEXT("name"), Pin->PinName.ToString());
+                        P->SetStringField(TEXT("type"), Pin->PinType.PinCategory.ToString());
+                        InputPins.Add(MakeShared<FJsonValueObject>(P));
+                    }
+                    else if (Pin->Direction == EGPD_Input && Pin->PinName != TEXT("execute"))
+                    {
+                        TSharedPtr<FJsonObject> P = MakeShared<FJsonObject>();
+                        P->SetStringField(TEXT("name"), Pin->PinName.ToString());
+                        P->SetStringField(TEXT("type"), Pin->PinType.PinCategory.ToString());
+                        OutputPins.Add(MakeShared<FJsonValueObject>(P));
+                    }
+                }
+            }
+        }
+        MacroObj->SetArrayField(TEXT("inputs"), InputPins);
+        MacroObj->SetArrayField(TEXT("outputs"), OutputPins);
+        MacrosArray.Add(MakeShared<FJsonValueObject>(MacroObj));
+    }
+
+    ResultObj->SetArrayField(TEXT("macros"), MacrosArray);
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+// ---- HandleReadSoundClass ----
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleReadSoundClass(const TSharedPtr<FJsonObject>& Params)
+{
+    FString AssetPath;
+    if (!Params->TryGetStringField(TEXT("asset_path"), AssetPath))
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'asset_path' parameter"));
+
+    UObject* Asset = UEditorAssetLibrary::LoadAsset(AssetPath);
+    if (!Asset)
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Failed to load audio asset at: %s"), *AssetPath));
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("asset_path"), AssetPath);
+    ResultObj->SetStringField(TEXT("asset_name"), Asset->GetName());
+    ResultObj->SetStringField(TEXT("class_name"), Asset->GetClass()->GetName());
+
+    // Generically export all editable properties via text
+    TArray<TSharedPtr<FJsonValue>> PropsArray;
+    for (TFieldIterator<FProperty> It(Asset->GetClass()); It; ++It)
+    {
+        FProperty* Prop = *It;
+        if (!Prop->HasAnyPropertyFlags(CPF_Edit)) continue;
+
+        FString ValueStr;
+        Prop->ExportTextItem_InContainer(ValueStr, Asset, nullptr, nullptr, PPF_None);
+
+        TSharedPtr<FJsonObject> PropObj = MakeShared<FJsonObject>();
+        PropObj->SetStringField(TEXT("name"), Prop->GetAuthoredName());
+        PropObj->SetStringField(TEXT("cpp_type"), Prop->GetCPPType());
+        PropObj->SetStringField(TEXT("value"), ValueStr);
+        PropsArray.Add(MakeShared<FJsonValueObject>(PropObj));
+    }
+
+    ResultObj->SetArrayField(TEXT("properties"), PropsArray);
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+// ==============================================================================
+// WORLD & LEVEL
+// ==============================================================================
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleGetActorsInLevel(const TSharedPtr<FJsonObject>& Params)
+{
+    UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+    if (!World) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("No Editor World available."));
+
+    TArray<TSharedPtr<FJsonValue>> ActorsArray;
+    for (TActorIterator<AActor> It(World); It; ++It)
+    {
+        AActor* Actor = *It;
+        TSharedPtr<FJsonObject> ActorObj = MakeShared<FJsonObject>();
+        ActorObj->SetStringField(TEXT("name"), Actor->GetActorNameOrLabel());
+        ActorObj->SetStringField(TEXT("class"), Actor->GetClass()->GetName());
+        
+        TSharedPtr<FJsonObject> TransformObj = MakeShared<FJsonObject>();
+        FTransform T = Actor->GetTransform();
+        FVector Loc = T.GetLocation();
+        FRotator Rot = T.GetRotation().Rotator();
+        FVector Scale = T.GetScale3D();
+        
+        TSharedPtr<FJsonObject> LocObj = MakeShared<FJsonObject>();
+        LocObj->SetNumberField(TEXT("x"), Loc.X); LocObj->SetNumberField(TEXT("y"), Loc.Y); LocObj->SetNumberField(TEXT("z"), Loc.Z);
+        TransformObj->SetObjectField(TEXT("location"), LocObj);
+        
+        TSharedPtr<FJsonObject> RotObj = MakeShared<FJsonObject>();
+        RotObj->SetNumberField(TEXT("pitch"), Rot.Pitch); RotObj->SetNumberField(TEXT("yaw"), Rot.Yaw); RotObj->SetNumberField(TEXT("roll"), Rot.Roll);
+        TransformObj->SetObjectField(TEXT("rotation"), RotObj);
+
+        TSharedPtr<FJsonObject> ScaleObj = MakeShared<FJsonObject>();
+        ScaleObj->SetNumberField(TEXT("x"), Scale.X); ScaleObj->SetNumberField(TEXT("y"), Scale.Y); ScaleObj->SetNumberField(TEXT("z"), Scale.Z);
+        TransformObj->SetObjectField(TEXT("scale"), ScaleObj);
+
+        ActorObj->SetObjectField(TEXT("transform"), TransformObj);
+        ActorsArray.Add(MakeShared<FJsonValueObject>(ActorObj));
+    }
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetArrayField(TEXT("actors"), ActorsArray);
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleSpawnActor(const TSharedPtr<FJsonObject>& Params)
+{
+    FString ClassPath;
+    if (!Params->TryGetStringField(TEXT("class_path"), ClassPath))
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'class_path' parameter"));
+    
+    UClass* SpawnClass = Cast<UClass>(UEditorAssetLibrary::LoadAsset(ClassPath));
+    if (!SpawnClass) // Might be a Blueprint
+    {
+        UBlueprint* BP = Cast<UBlueprint>(UEditorAssetLibrary::LoadAsset(ClassPath));
+        if (BP) SpawnClass = BP->GeneratedClass;
+    }
+
+    if (!SpawnClass || !SpawnClass->IsChildOf(AActor::StaticClass()))
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Invalid class or not an AActor derivative"));
+
+    UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+    if (!World) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("No Editor World available."));
+
+    double X = 0, Y = 0, Z = 0;
+    const TSharedPtr<FJsonObject>* LocObj;
+    if (Params->TryGetObjectField(TEXT("location"), LocObj))
+    {
+        (*LocObj)->TryGetNumberField(TEXT("x"), X);
+        (*LocObj)->TryGetNumberField(TEXT("y"), Y);
+        (*LocObj)->TryGetNumberField(TEXT("z"), Z);
+    }
+
+    FVector Location(X, Y, Z);
+    AActor* Spawned = World->SpawnActor<AActor>(SpawnClass, Location, FRotator::ZeroRotator);
+    if (!Spawned) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to spawn actor"));
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("actor_name"), Spawned->GetActorNameOrLabel());
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleDestroyActor(const TSharedPtr<FJsonObject>& Params)
+{
+    FString ActorName;
+    if (!Params->TryGetStringField(TEXT("actor_name"), ActorName))
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'actor_name' parameter"));
+        
+    UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+    if (!World) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("No Editor World available."));
+
+    bool bFound = false;
+    for (TActorIterator<AActor> It(World); It; ++It)
+    {
+        AActor* Actor = *It;
+        if (Actor->GetActorNameOrLabel() == ActorName)
+        {
+            Actor->Destroy();
+            bFound = true;
+            break;
+        }
+    }
+
+    if (!bFound) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Actor not found"));
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleSetActorTransform(const TSharedPtr<FJsonObject>& Params)
+{
+    FString ActorName;
+    if (!Params->TryGetStringField(TEXT("actor_name"), ActorName))
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'actor_name' parameter"));
+
+    UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+    if (!World) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("No Editor World available."));
+
+    AActor* Target = nullptr;
+    for (TActorIterator<AActor> It(World); It; ++It)
+    {
+        AActor* Actor = *It;
+        if (Actor->GetActorNameOrLabel() == ActorName)
+        {
+            Target = Actor;
+            break;
+        }
+    }
+
+    if (!Target) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Actor not found"));
+
+    FTransform T = Target->GetTransform();
+
+    const TSharedPtr<FJsonObject>* LocObj;
+    if (Params->TryGetObjectField(TEXT("location"), LocObj))
+    {
+        double X = T.GetLocation().X, Y = T.GetLocation().Y, Z = T.GetLocation().Z;
+        (*LocObj)->TryGetNumberField(TEXT("x"), X); (*LocObj)->TryGetNumberField(TEXT("y"), Y); (*LocObj)->TryGetNumberField(TEXT("z"), Z);
+        T.SetLocation(FVector(X, Y, Z));
+    }
+
+    const TSharedPtr<FJsonObject>* RotObj;
+    if (Params->TryGetObjectField(TEXT("rotation"), RotObj))
+    {
+        double P = T.GetRotation().Rotator().Pitch, YW = T.GetRotation().Rotator().Yaw, R = T.GetRotation().Rotator().Roll;
+        (*RotObj)->TryGetNumberField(TEXT("pitch"), P); (*RotObj)->TryGetNumberField(TEXT("yaw"), YW); (*RotObj)->TryGetNumberField(TEXT("roll"), R);
+        T.SetRotation(FRotator(P, YW, R).Quaternion());
+    }
+
+    const TSharedPtr<FJsonObject>* ScaleObj;
+    if (Params->TryGetObjectField(TEXT("scale"), ScaleObj))
+    {
+        double X = T.GetScale3D().X, Y = T.GetScale3D().Y, Z = T.GetScale3D().Z;
+        (*ScaleObj)->TryGetNumberField(TEXT("x"), X); (*ScaleObj)->TryGetNumberField(TEXT("y"), Y); (*ScaleObj)->TryGetNumberField(TEXT("z"), Z);
+        T.SetScale3D(FVector(X, Y, Z));
+    }
+    
+    Target->SetActorTransform(T);
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+// ==============================================================================
+// PLAY IN EDITOR & LOGS
+// ==============================================================================
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleStartPlayInEditor(const TSharedPtr<FJsonObject>& Params)
+{
+    if (!GEditor) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("GEditor not valid"));
+    
+    if (GEditor->PlayWorld) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Already in PIE"));
+
+    FRequestPlaySessionParams PlayParams;
+    GEditor->RequestPlaySession(PlayParams);
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleStopPlayInEditor(const TSharedPtr<FJsonObject>& Params)
+{
+    if (!GEditor) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("GEditor not valid"));
+    
+    if (!GEditor->PlayWorld) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Not currently in PIE"));
+
+    GEditor->RequestEndPlayMap();
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleGetEditorLogs(const TSharedPtr<FJsonObject>& Params)
+{
+    TArray<FString> Logs = FEpicUnrealMCPModule::Get().GetRecentLogs();
+    
+    bool bClear = false;
+    Params->TryGetBoolField(TEXT("clear_after_read"), bClear);
+    if (bClear) FEpicUnrealMCPModule::Get().ClearLogs();
+
+    TArray<TSharedPtr<FJsonValue>> LogArray;
+    for (const FString& S : Logs)
+    {
+        LogArray.Add(MakeShared<FJsonValueString>(S));
+    }
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetArrayField(TEXT("logs"), LogArray);
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+// ==============================================================================
+// ASSET MANAGEMENT
+// ==============================================================================
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleCreateMaterialInstance(const TSharedPtr<FJsonObject>& Params)
+{
+    FString ParentPath, DestPath;
+    if (!Params->TryGetStringField(TEXT("parent_path"), ParentPath) || !Params->TryGetStringField(TEXT("dest_path"), DestPath))
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'parent_path' or 'dest_path'"));
+
+    UMaterialInterface* ParentMat = Cast<UMaterialInterface>(UEditorAssetLibrary::LoadAsset(ParentPath));
+    if (!ParentMat) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Parent material not found"));
+
+    IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+    FString PackageName, AssetName;
+    AssetTools.CreateUniqueAssetName(DestPath, TEXT(""), PackageName, AssetName);
+
+    FString PackagePath = FPackageName::GetLongPackagePath(PackageName);
+
+    UObject* NewAsset = AssetTools.CreateAsset(AssetName, PackagePath, UMaterialInstanceConstant::StaticClass(), nullptr);
+    UMaterialInstanceConstant* MIC = Cast<UMaterialInstanceConstant>(NewAsset);
+    if (!MIC) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to create MIC"));
+
+    MIC->SetParentEditorOnly(ParentMat);
+    MIC->PostEditChange();
+    
+    UEditorAssetLibrary::SaveLoadedAsset(MIC);
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("asset_path"), MIC->GetPathName());
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleDuplicateAsset(const TSharedPtr<FJsonObject>& Params)
+{
+    FString SourcePath, DestPath;
+    if (!Params->TryGetStringField(TEXT("source_path"), SourcePath) || !Params->TryGetStringField(TEXT("dest_path"), DestPath))
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'source_path' or 'dest_path'"));
+
+    UObject* Duplicated = UEditorAssetLibrary::DuplicateAsset(SourcePath, DestPath);
+    if (!Duplicated) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("DuplicateAsset failed"));
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("asset_path"), Duplicated->GetPathName());
+    ResultObj->SetBoolField(TEXT("success"), true);
     return ResultObj;
 }

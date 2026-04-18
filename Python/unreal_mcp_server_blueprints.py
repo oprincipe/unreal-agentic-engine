@@ -601,6 +601,402 @@ def create_blueprint_from_prompt(prompt: str) -> Dict[str, Any]:
         return {"success": False, "message": str(e)}
 
 
+@mcp.tool()
+def read_blueprint_enum(enum_path: str) -> Dict[str, Any]:
+    """
+    Read the values from an Unreal Engine Blueprint Enumeration (UUserDefinedEnum).
+    
+    Args:
+        enum_path: The full path to the Enum asset (e.g., '/Game/HorrorEngine/Blueprints/Enums/E_InteractiveObjects')
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        params = {
+            "enum_path": enum_path,
+        }
+        response = unreal.send_command("read_blueprint_enum", params)
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"read_blueprint_enum error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def read_blueprint_struct(struct_path: str) -> Dict[str, Any]:
+    """
+    Read the variables and layouts from an Unreal Engine Blueprint Structure (UUserDefinedStruct).
+    
+    Args:
+        struct_path: The full path to the Struct asset (e.g., '/Game/HorrorEngine/Blueprints/Structures/S_InventoryItem')
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        params = {
+            "struct_path": struct_path,
+        }
+        response = unreal.send_command("read_blueprint_struct", params)
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"read_blueprint_struct error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def read_blueprint_functions(blueprint_path: str) -> Dict[str, Any]:
+    """
+    Read all functions and their input/output parameters from an Unreal Engine Blueprint (e.g. Function Library).
+    
+    Args:
+        blueprint_path: The full path to the Blueprint asset (e.g., '/Game/HorrorEngine/Blueprints/Core/HE_Functions')
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        params = {
+            "blueprint_path": blueprint_path,
+        }
+        response = unreal.send_command("read_blueprint_functions", params)
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"read_blueprint_functions error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def read_data_asset(asset_path: str) -> Dict[str, Any]:
+    """
+    Read properties and current values from an Unreal Engine Data Asset (UDataAsset/UPrimaryDataAsset).
+
+    Args:
+        asset_path: Full path to the asset (e.g., '/Game/HorrorEngine/Blueprints/HE_GameplaySettings')
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        response = unreal.send_command("read_data_asset", {"asset_path": asset_path})
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"read_data_asset error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def read_input_action(asset_path: str) -> Dict[str, Any]:
+    """
+    Read an Unreal Engine Enhanced Input Action asset (UInputAction): value type, triggers, modifiers.
+
+    Args:
+        asset_path: Full path to the InputAction asset (e.g., '/Game/HorrorEngine/Input/HE_Use')
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        response = unreal.send_command("read_input_action", {"asset_path": asset_path})
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"read_input_action error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def read_input_mapping_context(asset_path: str) -> Dict[str, Any]:
+    """
+    Read an Unreal Engine Input Mapping Context (UInputMappingContext): all key-to-action bindings.
+
+    Args:
+        asset_path: Full path to the IMC asset (e.g., '/Game/HorrorEngine/Input/IMC_HorrorEngine')
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        response = unreal.send_command("read_input_mapping_context", {"asset_path": asset_path})
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"read_input_mapping_context error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def read_widget_variables(blueprint_path: str) -> Dict[str, Any]:
+    """
+    Read the variables declared in an Unreal Engine Widget Blueprint (UWidgetBlueprint).
+
+    Args:
+        blueprint_path: Full path to the Widget Blueprint (e.g., '/Game/HorrorEngine/Blueprints/Widgets/MainHUD/MainHUD_WB')
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        response = unreal.send_command("read_widget_variables", {"blueprint_path": blueprint_path})
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"read_widget_variables error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def read_savegame_blueprint(blueprint_path: str) -> Dict[str, Any]:
+    """
+    Read the serialized variables from an Unreal Engine SaveGame Blueprint (USaveGame subclass).
+    Returns all properties, flagging those marked with the SaveGame metadata tag.
+
+    Args:
+        blueprint_path: Full path to the SaveGame Blueprint (e.g., '/Game/HorrorEngine/Blueprints/Core/HE_SaveGame')
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        response = unreal.send_command("read_savegame_blueprint", {"blueprint_path": blueprint_path})
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"read_savegame_blueprint error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def read_material(asset_path: str) -> Dict[str, Any]:
+    """
+    Read all exposed parameters (scalar, vector, texture) from an Unreal Engine Material or Material Instance.
+
+    Args:
+        asset_path: Full path to the material asset (e.g., '/Game/HorrorEngine/Materials/M_Master')
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        response = unreal.send_command("read_material", {"asset_path": asset_path})
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"read_material error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def read_blueprint_macros(blueprint_path: str) -> Dict[str, Any]:
+    """
+    Read all macros defined in an Unreal Engine Blueprint Macro Library (or any Blueprint with macros).
+    Returns macro names, node counts, and input/output pin signatures.
+
+    Args:
+        blueprint_path: Full path to the Blueprint (e.g., '/Game/HorrorEngine/Blueprints/Core/HE_Macros')
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        response = unreal.send_command("read_blueprint_macros", {"blueprint_path": blueprint_path})
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"read_blueprint_macros error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def read_sound_class(asset_path: str) -> Dict[str, Any]:
+    """
+    Read all editable properties from an Unreal Engine audio asset
+    (USoundClass, USoundMix, USoundAttenuation, USoundConcurrency, etc.).
+
+    Args:
+        asset_path: Full path to the audio asset (e.g., '/Game/HorrorEngine/Audio/_SoundSettings/SC_MasterSound')
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        response = unreal.send_command("read_sound_class", {"asset_path": asset_path})
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"read_sound_class error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def get_actors_in_level() -> Dict[str, Any]:
+    """
+    Get a list of all actors currently in the active Unreal Engine editor level.
+    Returns names, classes, and transforms (location, rotation, scale).
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        response = unreal.send_command("get_actors_in_level", {})
+        return response or {"success": False, "message": "No response"}
+    except Exception as e:
+        logger.error(f"get_actors_in_level error: {e}")
+        return {"success": False, "message": str(e)}
+
+@mcp.tool()
+def spawn_actor(class_path: str, location_x: float = 0.0, location_y: float = 0.0, location_z: float = 0.0) -> Dict[str, Any]:
+    """
+    Spawn an actor of a given class into the current editor world at the specified location.
+    
+    Args:
+        class_path: Full path to the class or Blueprint (e.g., '/Game/HorrorEngine/Blueprints/BP_Crate')
+        location_x: X coordinate
+        location_y: Y coordinate
+        location_z: Z coordinate
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        params = {
+            "class_path": class_path,
+            "location": {"x": location_x, "y": location_y, "z": location_z}
+        }
+        response = unreal.send_command("spawn_actor", params)
+        return response or {"success": False, "message": "No response"}
+    except Exception as e:
+        logger.error(f"spawn_actor error: {e}")
+        return {"success": False, "message": str(e)}
+
+@mcp.tool()
+def destroy_actor(actor_name: str) -> Dict[str, Any]:
+    """
+    Destroy an actor in the current world by its name.
+    
+    Args:
+        actor_name: The name or label of the actor to destroy.
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        response = unreal.send_command("destroy_actor", {"actor_name": actor_name})
+        return response or {"success": False, "message": "No response"}
+    except Exception as e:
+        logger.error(f"destroy_actor error: {e}")
+        return {"success": False, "message": str(e)}
+
+@mcp.tool()
+def set_actor_transform(actor_name: str, 
+                        loc_x: float = None, loc_y: float = None, loc_z: float = None,
+                        rot_pitch: float = None, rot_yaw: float = None, rot_roll: float = None,
+                        scale_x: float = None, scale_y: float = None, scale_z: float = None) -> Dict[str, Any]:
+    """
+    Set the transform (location, rotation, scale) of an actor in the world.
+    Pass None for parameters you do not wish to change.
+    
+    Args:
+        actor_name: Existing actor name/label in the level.
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        params = {"actor_name": actor_name}
+        if loc_x is not None and loc_y is not None and loc_z is not None:
+            params["location"] = {"x": loc_x, "y": loc_y, "z": loc_z}
+        if rot_pitch is not None and rot_yaw is not None and rot_roll is not None:
+            params["rotation"] = {"pitch": rot_pitch, "yaw": rot_yaw, "roll": rot_roll}
+        if scale_x is not None and scale_y is not None and scale_z is not None:
+            params["scale"] = {"x": scale_x, "y": scale_y, "z": scale_z}
+            
+        response = unreal.send_command("set_actor_transform", params)
+        return response or {"success": False, "message": "No response"}
+    except Exception as e:
+        logger.error(f"set_actor_transform error: {e}")
+        return {"success": False, "message": str(e)}
+
+@mcp.tool()
+def start_play_in_editor() -> Dict[str, Any]:
+    """Start a Play In Editor (PIE) session in Unreal Engine."""
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        response = unreal.send_command("start_play_in_editor", {})
+        return response or {"success": False, "message": "No response"}
+    except Exception as e:
+        logger.error(f"start_play_in_editor error: {e}")
+        return {"success": False, "message": str(e)}
+
+@mcp.tool()
+def stop_play_in_editor() -> Dict[str, Any]:
+    """Stop the current Play In Editor (PIE) session."""
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        response = unreal.send_command("stop_play_in_editor", {})
+        return response or {"success": False, "message": "No response"}
+    except Exception as e:
+        logger.error(f"stop_play_in_editor error: {e}")
+        return {"success": False, "message": str(e)}
+
+@mcp.tool()
+def get_editor_logs(clear_after_read: bool = True) -> Dict[str, Any]:
+    """
+    Retrieve recent warning, error, and display logs from the Unreal Engine editor.
+    Useful for seeing the output of a test play session.
+    
+    Args:
+        clear_after_read: If True, empties the log buffer after fetching.
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        response = unreal.send_command("get_editor_logs", {"clear_after_read": clear_after_read})
+        return response or {"success": False, "message": "No response"}
+    except Exception as e:
+        logger.error(f"get_editor_logs error: {e}")
+        return {"success": False, "message": str(e)}
+
+@mcp.tool()
+def create_material_instance(parent_path: str, dest_path: str) -> Dict[str, Any]:
+    """
+    Create a Material Instance Constant mapped to a parent material.
+    
+    Args:
+        parent_path: Full path to the parent UMaterial (e.g., '/Game/HorrorEngine/Materials/M_Master')
+        dest_path: Deserted package path + name for the new instance (e.g., '/Game/HorrorEngine/Materials/MI_NewWall')
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        params = {"parent_path": parent_path, "dest_path": dest_path}
+        response = unreal.send_command("create_material_instance", params)
+        return response or {"success": False, "message": "No response"}
+    except Exception as e:
+        logger.error(f"create_material_instance error: {e}")
+        return {"success": False, "message": str(e)}
+
+@mcp.tool()
+def duplicate_asset(source_path: str, dest_path: str) -> Dict[str, Any]:
+    """
+    Duplicate any asset in the project.
+    
+    Args:
+        source_path: Full path to the existing asset (e.g., '/Game/HorrorEngine/Blueprints/BP_Key')
+        dest_path: Full path for the new duplicated asset (e.g., '/Game/HorrorEngine/Blueprints/BP_Key_Golden')
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        params = {"source_path": source_path, "dest_path": dest_path}
+        response = unreal.send_command("duplicate_asset", params)
+        return response or {"success": False, "message": "No response"}
+    except Exception as e:
+        logger.error(f"duplicate_asset error: {e}")
+        return {"success": False, "message": str(e)}
+
+
 if __name__ == "__main__":
     logger.info("Starting Blueprint-focused MCP server with stdio transport")
     mcp.run(transport='stdio')

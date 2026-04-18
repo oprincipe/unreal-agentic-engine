@@ -19,4 +19,10 @@ public:
 	{
 		return FModuleManager::Get().IsModuleLoaded("UnrealMCP");
 	}
+
+	TArray<FString> GetRecentLogs() const;
+	void ClearLogs();
+
+private:
+	class FEpicUnrealMCPLogBuffer* LogBuffer = nullptr;
 }; 
