@@ -154,6 +154,7 @@ void FEpicUnrealMCPModule::EnsureAgentRunning()
 	// Locate unreal_mcp_agent.py relative to this plugin
 	FString PluginDir = IPluginManager::Get().FindPlugin(TEXT("UnrealMCP"))->GetBaseDir();
 	FString ScriptPath = FPaths::Combine(PluginDir, TEXT("Python"), TEXT("unreal_mcp_agent.py"));
+	ScriptPath = FPaths::ConvertRelativePathToFull(ScriptPath);
 	FPaths::NormalizeFilename(ScriptPath);
 
 	if (!FPaths::FileExists(ScriptPath))
