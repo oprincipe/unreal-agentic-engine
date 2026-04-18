@@ -1,34 +1,30 @@
-# The Most Advanced MCP Server for Unreal Engine
+# Unreal MCP Agent 🤖
 
 [![Unreal Engine](https://img.shields.io/badge/Unreal%20Engine-5.5%2B-orange.svg)](https://www.unrealengine.com/)
-[![YouTube](https://img.shields.io/badge/YouTube-@flopperam-red.svg?logo=youtube)](https://youtube.com/@flopperam)
-[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2.svg?logo=discord&logoColor=white)](https://discord.gg/3KNkke3rnH)
-[![Twitter](https://img.shields.io/badge/X-@Flopperam-1DA1F2.svg?logo=x&logoColor=white)](https://twitter.com/Flopperam)
-[![TikTok](https://img.shields.io/badge/TikTok-@flopperam-000000.svg?logo=tiktok&logoColor=white)](https://tiktok.com/@flopperam)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-**Control Unreal Engine 5.5+ through AI with natural language. Build incredible 3D worlds and architectural masterpieces using MCP. Create entire towns, medieval castles, modern mansions, challenging mazes, and complex structures with AI-powered commands.**
+**Connect your AI Agent directly to Unreal Engine 5 via the Model Context Protocol (MCP). Let AI read your Blueprints, spawn and manipulate actors, test your game in PIE, and capture engine logs autonomously.**
 
-> **Active Development**: This project is under very active development with consistent updates, new features, and improvements being added regularly. Join our [Discord](https://discord.gg/3KNkke3rnH) to stay updated on the latest releases!
+> **Credit**: This repository is an advanced, independent evolution originally forked from [Flopperam's unreal-engine-mcp](https://github.com/flopperam/unreal-engine-mcp). While the original project focused heavily on procedural generation algorithms, this project aims to create a fully autonomous Agentic workflow to inspect, debug, and script the engine logic itself.
 
-## 🎬 See It In Action
-Watch our comprehensive tutorial for complete setup and usage:
-- **[Complete MCP Tutorial & Installation Guide](https://youtu.be/ct5dNJC-Hx4)** - Full walkthrough of installation, setup, and advanced usage
+---
 
-Check out these examples of the MCP server in action on our channel:
-- **[GPT-5 vs Claude](https://youtube.com/shorts/xgoJ4d3d4-4)** - Watch Claude and GPT-5 go head-to-head building simultaneously - Claude creates a massive fortress while GPT-5 builds a sprawling city
-- **[Advanced Metropolis Generation](https://youtube.com/shorts/6WkxCQXbCWk)** - Watch AI generate a full-blown metropolis with towers, streets, parks, and over 4,000 objects from a single prompt
-- **[Advanced Maze & Mansion Generation](https://youtube.com/shorts/ArExYGpIZwI)** - Watch Claude generate a playable maze and complete mansion complex with wings, towers, and arches
+## 🚀 True Agentic Workflow
 
-## Featured Capabilities
+Unlike traditional procedural generation plugins, **Unreal MCP Agent** gives the AI "eyes" and "hands" inside the Editor.
+You don't just ask the AI to "build a house". You can say:
+> "Read the variables of `BP_GameplaySettings`, tell me if gravity is too low, spawn a physics crate, run Play-in-Editor, and check the Engine logs to see if it triggers the collision warning."
 
-### Blueprint Introspection & Analysis
+### ✨ Featured Capabilities
+
+**1. Blueprint Introspection & Analysis**
 ```bash
 # Read variables, structs, inputs, enums and functions from any Blueprint
 > "Show me the variables inside the GameplaySettings Blueprint"
 → read_blueprint_functions(blueprint_path="/Game/Blueprints/BP_GameplaySettings")
 ```
 
-### World Manipulation & Editor Control
+**2. World Manipulation & Editor Control**
 ```bash
 # Spawn actors, control Play-in-Editor (PIE) and read engine logs
 > "Place a crate at the center of the room and play the game"
@@ -39,63 +35,43 @@ Check out these examples of the MCP server in action on our channel:
 
 ---
 
-## Complete Tool Arsenal
+## 🛠 Complete Tool Arsenal
 
 | **Category** | **Tools** | **Description** |
 |--------------|-----------|-----------------|
-| **World Building** | `create_town`, `construct_house`, `create_tower`, `create_arch` | Build complex architectural structures and settlements |
-| **Level Design** | `create_maze`, `create_obstacle_course`, `create_pyramid`, `create_wall` | Design challenging game levels and puzzles |
-| **Physics & Materials** | `spawn_physics_blueprint_actor`, `set_physics_properties`, `create_material_instance` | Physics simulations and material assignments |
-| **Asset Management** | `duplicate_asset`, `read_data_asset`, `read_input_action` | Manipulate and read existing project assets |
-| **Blueprint Introspection** | `read_blueprint_struct`, `read_blueprint_functions`, `read_blueprint_enum` | Fully analyze internal blueprint logic and variables |
+| **Blueprint Introspection** | `read_blueprint_struct`, `read_blueprint_functions`, `read_blueprint_enum`, `read_widget_variables`, `read_savegame_blueprint` | Analyze internal blueprint data, logic, and editable variables |
+| **Asset Management** | `duplicate_asset`, `read_data_asset`, `read_input_action`, `create_material_instance` | Manipulate and read existing project assets |
 | **Actor & Scene Control** | `get_actors_in_level`, `spawn_actor`, `destroy_actor`, `set_actor_transform` | Precise control over scene objects and transforms |
-| **Editor Pipeline** | `start_play_in_editor`, `stop_play_in_editor`, `get_editor_logs` | Run games & capture engine logs via AI |
+| **Editor Pipeline** | `start_play_in_editor`, `stop_play_in_editor`, `get_editor_logs` | Run games & capture engine errors via AI |
 
 ---
 
-## ⚡ Lightning-Fast Setup
+## ⚡ Setup
 
 ### Prerequisites
 - **Unreal Engine 5.5+** 
 - **Python 3.12+**
 - **MCP Client** (Claude Desktop, Cursor, or Windsurf)
 
-### 1. Setup Options
+### 1. Installation
 
-**Option A: Use the Pre-Built Project (Recommended for Quick Start)**
+**Add Plugin to Your Existing Project**
 ```bash
-# Clone the repository
-git clone https://github.com/oprincipe/unreal-engine-mcp.git
-cd unreal-engine-mcp
+git clone https://github.com/oprincipe/unreal-mcp-agent.git
+cd unreal-mcp-agent
 
-# Open the pre-configured project
-# Double-click FlopperamUnrealMCP/FlopperamUnrealMCP.uproject
-# or open it through Unreal Engine launcher
-```
-
-**Option B: Add Plugin to Your Existing Project**
-```bash
-# Copy the plugin to your project
+# Copy the plugin to your Unreal project
 cp -r UnrealMCP/ YourProject/Plugins/
 
-# Enable in Unreal Editor
+# Enable it in the Unreal Editor
 Edit → Plugins → Search "UnrealMCP" → Enable → Restart Editor
-```
-
-**Option C: Install for All Projects**
-```bash
-# Copy to Engine plugins folder
-cp -r UnrealMCP/ "C:/Program Files/Epic Games/UE_5.5/Engine/Plugins/"
 ```
 
 ### 2. Launch the MCP Server
 
 ```bash
 cd Python
-# Basic generative tools
-uv run unreal_mcp_server_advanced.py
-
-# OR - Full Blueprint, Editor Control, and Introspection capabilities
+# Launch the Agentic Server
 uv run unreal_mcp_server_blueprints.py
 ```
 
@@ -114,7 +90,7 @@ Add this to your MCP configuration:
       "command": "uv",
       "args": [
         "--directory", 
-        "/path/to/unreal-engine-mcp/Python",
+        "/absolute/path/to/unreal-mcp-agent/Python",
         "run", 
         "unreal_mcp_server_blueprints.py"
       ]
@@ -123,28 +99,12 @@ Add this to your MCP configuration:
 }
 ```
 
-### Recommended AI Model
+### 4. Start Automating!
 
-**We strongly recommend using Claude for the best experience.**
-
-Claude has proven to be the most effective AI model for:
-- Understanding complex 3D spatial relationships
-- Analyzing Blueprint structures and identifying engine workflows
-- Following architectural and physics constraints
-- Creating coherent multi-step building processes
-
-### Enhanced Accuracy with Rules
-
-For improved results, especially when creating specific types of objects, provide the AI with our curated rules:
-
-- **`.cursor/rules/`** - Contains specialized guides for different creation tasks
-
-### 4. Start Building!
-
-```bash
-> "Create a medieval castle with towers and walls"
-> "Generate a town square with fountain and buildings"
-> "Make a challenging maze for players to solve"
+```text
+> "What are the boolean variables inside BP_PlayerState?"
+> "Spawn BP_Enemy at 100, 200, 0"
+> "Start the game, wait, and tell me if any errors were printed in the logs."
 ```
 
 ---
@@ -153,42 +113,22 @@ For improved results, especially when creating specific types of objects, provid
 
 ```mermaid
 graph TB
-    A[AI Client<br/>Cursor/Claude/Windsurf] -->|MCP Protocol| B[Python Server<br/>unreal_mcp_server_advanced.py]
+    A[AI Client<br/>Cursor/Claude/Windsurf] -->|MCP Protocol| B[Python Server<br/>unreal_mcp_server_blueprints.py]
     B -->|TCP Socket| C[C++ Plugin<br/>UnrealMCP]
     C -->|Native API| D[Unreal Engine 5.5+<br/>Editor & Runtime]
     
-    B --> E[Advanced Tools]
-    E --> F[World Building]
-    E --> G[Physics Simulation]  
-    E --> H[Blueprint System]
+    B --> E[Agentic Tools]
+    E --> F[Blueprint Introspection]
+    E --> G[World Spawning & Editing]  
     
-    C --> I[Actor Management]
-    C --> J[Component System]
-    C --> K[Material System]
+    C --> I[Editor Play/Stop]
+    C --> J[Log Interception]
+    C --> K[Asset Parsing]
 ```
-
-**Performance**: Native C++ plugin ensures minimal latency for real-time control
-**Reliability**: Robust TCP communication with automatic reconnection
-**Flexibility**: Full access to Unreal's actor, component, and Blueprint systems
-
----
-
-## Community & Support
-
-**Join our community and get help building amazing worlds!**
-
-### Connect With Us
-- **YouTube**: [youtube.com/@flopperam](https://youtube.com/@flopperam) - Tutorials, showcases, and development updates
-- **Discord**: [discord.gg/8yr1RBv](https://discord.gg/3KNkke3rnH) - Get help, share creations, and discuss the plugin
-- **Twitter/X**: [twitter.com/Flopperam](https://twitter.com/Flopperam) - Latest news and quick updates  
-- **TikTok**: [tiktok.com/@flopperam](https://tiktok.com/@flopperam) - Quick tips and amazing builds
-
-### Get Help & Share
-- **Questions?** Ask in our Discord server for real-time support
-- **Bug reports?** Open an issue on GitHub with reproduction steps
-- **Feature ideas?** Join the discussion in our community channels
 
 ---
 
 ## License
-MIT License - Build amazing things freely.
+**MIT License** - Build amazing automated workflows freely.
+
+*This project is built upon the foundation originally authored by Flopperam. We thank the original contributors for the stable TCP Bridge pattern.*
