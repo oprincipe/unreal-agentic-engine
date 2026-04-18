@@ -12,6 +12,10 @@
 #include "Framework/Docking/TabManager.h"
 #include "LevelEditor.h"
 #include "UI/SUnrealMCPChatWidget.h"
+#include "Interfaces/IPluginManager.h"
+#include "Misc/MessageDialog.h"
+#include "Logging/MessageLog.h"
+#include "Logging/TokenizedMessage.h"
 #endif
 
 #include "Misc/OutputDevice.h"
@@ -88,6 +92,7 @@ void FEpicUnrealMCPModule::ShutdownModule()
 	}
 
 #if WITH_EDITOR
+	StopAgent(); // terminate Python agent process on shutdown
 	UToolMenus::UnregisterOwner(this);
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FName("UnrealMCPChatTab"));
 
@@ -121,11 +126,96 @@ void FEpicUnrealMCPModule::RegisterMenus()
 
 TSharedRef<SDockTab> FEpicUnrealMCPModule::OnSpawnChatTab(const FSpawnTabArgs& SpawnTabArgs)
 {
+	EnsureAgentRunning(); // launch Python agent if not already running
+
 	return SNew(SDockTab)
 		.TabRole(ETabRole::NomadTab)
 		[
 			SNew(SUnrealMCPChatWidget)
 		];
+}
+
+void FEpicUnrealMCPModule::EnsureAgentRunning()
+{
+	// Already running?
+	if (AgentProcess.IsValid() && FPlatformProcess::IsProcRunning(AgentProcess))
+	{
+		return;
+	}
+
+	// Locate python executable
+	FString PythonExe = TEXT("python");
+#if PLATFORM_WINDOWS
+	PythonExe = TEXT("python.exe");
+#elif PLATFORM_MAC || PLATFORM_LINUX
+	PythonExe = TEXT("python3");
+#endif
+
+	// Locate unreal_mcp_agent.py relative to this plugin
+	FString PluginDir = IPluginManager::Get().FindPlugin(TEXT("UnrealMCP"))->GetBaseDir();
+	FString ScriptPath = FPaths::Combine(PluginDir, TEXT("Python"), TEXT("unreal_mcp_agent.py"));
+	FPaths::NormalizeFilename(ScriptPath);
+
+	if (!FPaths::FileExists(ScriptPath))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UnrealMCP: Agent script not found at %s"), *ScriptPath);
+		// Show user-facing notification
+		TSharedRef<FTokenizedMessage> Msg = FTokenizedMessage::Create(EMessageSeverity::Warning);
+		Msg->AddToken(FTextToken::Create(FText::FromString(
+			FString::Printf(TEXT("Unreal AI Agent: script not found at '%s'. Check your plugin installation."), *ScriptPath)
+		)));
+		FMessageLog("PIE").AddMessage(Msg);
+		return;
+	}
+
+	// Build project Saved path so agent knows where to create the SQLite DB
+	FString SavedDir = FPaths::ConvertRelativePathToFull(
+		FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("UnrealMCP"))
+	);
+	FString DbPath = FPaths::Combine(SavedDir, TEXT("chat_history.db"));
+
+	FString Args = FString::Printf(TEXT("\"%s\""), *ScriptPath);
+
+	uint32 OutProcessId = 0;
+	AgentProcess = FPlatformProcess::CreateProc(
+		*PythonExe,
+		*Args,
+		/*bLaunchDetached=*/ false,
+		/*bLaunchHidden=*/   true,
+		/*bLaunchReallyHidden=*/ true,
+		&OutProcessId,
+		/*PriorityModifier=*/ 0,
+		/*OptionalWorkingDirectory=*/ nullptr,
+		/*PipeWriteChild=*/ nullptr
+	);
+
+	if (AgentProcess.IsValid())
+	{
+		UE_LOG(LogTemp, Display, TEXT("UnrealMCP: Launched Python Agent (PID %d)"), OutProcessId);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("UnrealMCP: Failed to launch Python. Is Python installed and in your PATH?"));
+		// Show user-facing error dialog once
+		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(
+			TEXT("⚠️ Unreal AI Agent could not start the Python backend.\n\n"
+			     "Please make sure Python 3.10+ is installed and available in your system PATH.\n\n"
+			     "You can download it from https://www.python.org/downloads/")
+		));
+	}
+}
+
+void FEpicUnrealMCPModule::StopAgent()
+{
+	if (AgentProcess.IsValid())
+	{
+		if (FPlatformProcess::IsProcRunning(AgentProcess))
+		{
+			FPlatformProcess::TerminateProc(AgentProcess, /*bKillTree=*/ true);
+			UE_LOG(LogTemp, Display, TEXT("UnrealMCP: Python Agent terminated."));
+		}
+		FPlatformProcess::CloseProc(AgentProcess);
+	}
 }
 #endif
 

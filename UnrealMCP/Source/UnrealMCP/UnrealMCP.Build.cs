@@ -63,9 +63,10 @@ public class UnrealMCP : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"PropertyEditor",      // For property editing
-					"ToolMenus",           // For editor UI
-					"BlueprintEditorLibrary" // For Blueprint utilities
+					"PropertyEditor",       // For property editing
+					"ToolMenus",            // For editor UI
+					"BlueprintEditorLibrary", // For Blueprint utilities
+					"MessageLog"            // For in-editor message notifications
 				}
 			);
 		}

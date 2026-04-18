@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/Docking/TabManager.h"
+#include "HAL/PlatformProcess.h"
 
 class FEpicUnrealMCPModule : public IModuleInterface
 {
@@ -28,6 +29,12 @@ private:
 	void RegisterMenus();
 	TSharedRef<SDockTab> OnSpawnChatTab(const FSpawnTabArgs& SpawnTabArgs);
 
+	/** Starts unreal_mcp_agent.py if not already running. */
+	void EnsureAgentRunning();
+	/** Kills the agent process on shutdown. */
+	void StopAgent();
+
 	class FEpicUnrealMCPLogBuffer* LogBuffer = nullptr;
-	TSharedPtr<FTabSpawnerEntry> ChatTabSpawner;
+	TSharedPtr<FTabSpawnerEntry>   ChatTabSpawner;
+	FProcHandle                    AgentProcess;
 }; 
