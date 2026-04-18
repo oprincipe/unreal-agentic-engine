@@ -120,40 +120,63 @@ FReply FUnrealMCPEditorSettingsCustomization::OnRefreshModelsClicked()
 
     if (bIsOllama)
     {
-        // HTTP GET to Ollama /api/tags via Python agent endpoint
-        FString JsonBody = FString::Printf(
-            TEXT("{\"api_key\":\"%s\"}"), *Settings->OllamaServerUrl);
+        // Call Ollama REST API directly — no Python agent needed
+        FString OllamaTagsUrl = Settings->OllamaServerUrl / TEXT("api/tags");
+        // FString "/" operator may not work for URLs, build manually
+        OllamaTagsUrl = Settings->OllamaServerUrl;
+        if (!OllamaTagsUrl.EndsWith(TEXT("/")))
+        {
+            OllamaTagsUrl += TEXT("/");
+        }
+        OllamaTagsUrl += TEXT("api/tags");
 
         TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
-        Req->SetURL(TEXT("http://127.0.0.1:55558/models/ollama"));
-        Req->SetVerb(TEXT("POST"));
-        Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
-        Req->SetContentAsString(JsonBody);
+        Req->SetURL(OllamaTagsUrl);
+        Req->SetVerb(TEXT("GET"));
         Req->OnProcessRequestComplete().BindLambda(
             [](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOK)
             {
                 if (!bOK || !Resp.IsValid() || Resp->GetResponseCode() != 200)
                 {
                     FMessageDialog::Open(EAppMsgType::Ok,
-                        FText::FromString("Could not reach Ollama. Is the server running?"));
+                        FText::FromString(FString::Printf(
+                            TEXT("Could not reach Ollama (HTTP %d).\nMake sure Ollama is running at the configured URL."),
+                            Resp.IsValid() ? Resp->GetResponseCode() : 0)));
                     return;
                 }
                 TSharedPtr<FJsonObject> Json;
                 TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
-                if (!FJsonSerializer::Deserialize(Reader, Json)) return;
+                if (!FJsonSerializer::Deserialize(Reader, Json) || !Json.IsValid())
+                {
+                    FMessageDialog::Open(EAppMsgType::Ok, FText::FromString("Failed to parse Ollama response."));
+                    return;
+                }
 
+                // Ollama /api/tags returns { "models": [ { "name": "llama3:latest", ... }, ... ] }
                 const TArray<TSharedPtr<FJsonValue>>* ModelsPtr = nullptr;
-                if (Json->TryGetArrayField(TEXT("models"), ModelsPtr) && ModelsPtr)
+                if (Json->TryGetArrayField(TEXT("models"), ModelsPtr) && ModelsPtr && ModelsPtr->Num() > 0)
                 {
                     TArray<FString> Names;
                     for (const TSharedPtr<FJsonValue>& M : *ModelsPtr)
                     {
-                        FString Name;
-                        if (M->TryGetString(Name)) Names.Add(Name);
+                        const TSharedPtr<FJsonObject>* Obj;
+                        if (M->TryGetObject(Obj))
+                        {
+                            FString Name;
+                            if ((*Obj)->TryGetStringField(TEXT("name"), Name))
+                            {
+                                Names.Add(Name);
+                            }
+                        }
                     }
                     FString List = FString::Join(Names, TEXT("\n"));
                     FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(
-                        FString::Printf(TEXT("Available Ollama Models:\n\n%s"), *List)));
+                        FString::Printf(TEXT("Available Ollama Models:\n\n%s\n\nCopy and paste one into the Model Name field."), *List)));
+                }
+                else
+                {
+                    FMessageDialog::Open(EAppMsgType::Ok,
+                        FText::FromString("Ollama is running but has no models installed.\nRun: ollama pull llama3"));
                 }
             });
         Req->ProcessRequest();
