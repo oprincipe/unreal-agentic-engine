@@ -6,10 +6,11 @@
 #include "IDetailCustomization.h"
 #include "Input/Reply.h"
 
+class IDetailLayoutBuilder;
+
 class FUnrealMCPEditorSettingsCustomization : public IDetailCustomization
 {
 public:
-    /** Makes a new instance of this detail layout class for a specific detail view requesting it */
     static TSharedRef<IDetailCustomization> MakeInstance();
 
     // IDetailCustomization interface
@@ -17,5 +18,13 @@ public:
 
 private:
     FReply OnTestConnectionClicked();
+    FReply OnRefreshModelsClicked();
+
+    /** Returns whether the API Key row should be visible (i.e. provider != Ollama). */
+    EVisibility GetApiKeyVisibility()      const;
+    /** Returns whether the Ollama URL row should be visible (provider == Ollama). */
+    EVisibility GetOllamaUrlVisibility()   const;
+
+    IDetailLayoutBuilder* CachedDetailBuilder = nullptr;
 };
 #endif

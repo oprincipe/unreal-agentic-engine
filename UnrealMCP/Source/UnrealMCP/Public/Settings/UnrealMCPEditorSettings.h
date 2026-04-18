@@ -41,6 +41,10 @@ public:
     UPROPERTY(config, EditAnywhere, Category = "AI Configuration", meta=(PasswordField=true))
     FString ApiKey;
 
+    /** Ollama server URL. Only used when Provider is set to Ollama. */
+    UPROPERTY(config, EditAnywhere, Category = "AI Configuration")
+    FString OllamaServerUrl;
+
     /**
      * Model name to use.
      * Examples: claude-3-5-sonnet-20241022, gpt-4o, gemini-2.0-flash, llama3:latest
