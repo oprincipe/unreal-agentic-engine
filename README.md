@@ -75,9 +75,27 @@ cd Python
 uv run unreal_mcp_server_blueprints.py
 ```
 
-### 3. Configure Your AI Client
+### 3. Native Editor Chat Integration (Zero Setup!)
 
-Add this to your MCP configuration:
+As of v2.0, the plugin includes a fully integrated **Native AI Assistant** right inside the engine UI, eliminating the need for external clients or configuration.
+
+1. Go to **Project Settings → Plugins → Unreal AI Agent**
+2. Select your AI Provider: **Anthropic, OpenAI, Google, or Ollama**
+3. Open the chat from the top menu: **Tools → Editor → Unreal AI Agent**
+4. Type commands directly in Unreal Engine (e.g., *"Spawn a cube here"*). The embedded Python agent will automatically spin up in the background and execute everything!
+
+> [!WARNING]
+> **Use Local LLMs? (Ollama)**
+> Local models are inherently slower than cloud APIs. To prevent Unreal Engine from dropping the connection while the AI is "thinking", you **must** add this to your project's `Config/DefaultEngine.ini`:
+> ```ini
+> [HTTP]
+> HttpActivityTimeout=600
+> ```
+> This extends the engine's HTTP timeout to 10 minutes.
+
+### 4. Or use an External MCP Client (Cursor / Claude Desktop)
+
+If you prefer using an external IDE like Cursor or Claude Desktop, you can hook them directly to the python backend:
 
 **Cursor**: `.cursor/mcp.json`
 **Claude Desktop**: `~/.config/claude-desktop/mcp.json` 
@@ -90,7 +108,7 @@ Add this to your MCP configuration:
       "command": "uv",
       "args": [
         "--directory", 
-        "/absolute/path/to/unreal-mcp-agent/Python",
+        "/absolute/path/to/unreal-mcp-agent/UnrealMCP/Python",
         "run", 
         "unreal_mcp_server_blueprints.py"
       ]
@@ -99,7 +117,7 @@ Add this to your MCP configuration:
 }
 ```
 
-### 4. Start Automating!
+### 5. Start Automating!
 
 ```text
 > "What are the boolean variables inside BP_PlayerState?"
