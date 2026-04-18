@@ -19,7 +19,6 @@ def send_command(command_type, params):
         
         s.sendall(json.dumps(payload).encode('utf-8'))
         
-        # Read the size first or just read all
         data = s.recv(1024 * 1024)
         if not data:
             print("Failed: No data received")
@@ -33,18 +32,16 @@ def send_command(command_type, params):
         return None
 
 if __name__ == "__main__":
-    # Test 1: Spawn an actor
-    res1 = send_command("spawn_actor", {
-        "class_path": "/Engine/BasicShapes/Cube",
-        "location": {"x": 0.0, "y": 0.0, "z": 100.0}
-    })
+    time.sleep(1)
     
-    if res1 and res1.get("status") == "success":
-        actor_name = res1.get("result", {}).get("name", "")
-        # Test 2: Modify its transform
-        if actor_name:
-            send_command("set_actor_transform", {
-                "actor_name": actor_name,
-                "location": {"x": 500.0, "y": 0.0, "z": 200.0},
-                "rotation": {"pitch": 0.0, "yaw": 45.0, "roll": 0.0}
-            })
+    # 1. Start PIE
+    send_command("start_play_in_editor", {})
+
+    # 2. Wait
+    time.sleep(2)
+
+    # 3. Read logs
+    send_command("get_editor_logs", {"clear_after_read": True})
+
+    # 4. Stop PIE
+    send_command("stop_play_in_editor", {})
