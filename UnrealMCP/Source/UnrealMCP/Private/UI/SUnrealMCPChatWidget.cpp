@@ -1,6 +1,5 @@
 #include "UI/SUnrealMCPChatWidget.h"
 #include "Settings/UnrealMCPEditorSettings.h"
-#include "EpicUnrealMCPBridge.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SBox.h"
@@ -19,6 +18,8 @@
 #include "Serialization/JsonWriter.h"
 #include "HAL/PlatformFileManager.h"
 #include "Styling/AppStyle.h"
+#include "HttpModule.h"
+#include "Http.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMCPChat"
 
@@ -165,39 +166,62 @@ FReply SUnrealMCPChatWidget::OnSendClicked()
         return FReply::Handled();
     }
 
-    // Build payload and dispatch via Bridge
-    TSharedPtr<FJsonObject> ChatParams = MakeShareable(new FJsonObject());
-    ChatParams->SetStringField(TEXT("message"),    UserText);
-    ChatParams->SetStringField(TEXT("session_id"), CurrentSessionId);
-    ChatParams->SetStringField(TEXT("api_key"),    Settings->ApiKey);
-    ChatParams->SetStringField(TEXT("model"),      Settings->ModelName);
+    // Build JSON payload for the Python Agent HTTP server
+    TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject());
+    Payload->SetStringField(TEXT("message"),    UserText);
+    Payload->SetStringField(TEXT("session_id"), CurrentSessionId);
+    Payload->SetStringField(TEXT("api_key"),    Settings->ApiKey);
+    Payload->SetStringField(TEXT("model"),      Settings->ModelName);
+
     const UEnum* ProviderEnum = StaticEnum<EUnrealMCPProvider>();
-    ChatParams->SetStringField(TEXT("provider"),   ProviderEnum ? ProviderEnum->GetNameStringByValue((int64)Settings->Provider) : TEXT("Anthropic"));
+    FString ProviderStr = ProviderEnum
+        ? ProviderEnum->GetDisplayNameTextByValue((int64)Settings->Provider).ToString()
+        : TEXT("Anthropic");
+    Payload->SetStringField(TEXT("provider"), ProviderStr);
 
-    // Fire and forget - the Python loop will push the response back via a dedicated response channel
-    // (Phase 4 - async streaming). For now we do a synchronous TCP call for simplicity.
-    UEpicUnrealMCPBridge* Bridge = GEditor ? GEditor->GetEditorSubsystem<UEpicUnrealMCPBridge>() : nullptr;
-    if (Bridge)
-    {
-        FString Response = Bridge->ExecuteCommand(TEXT("chat_message"), ChatParams);
+    FString PayloadStr;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&PayloadStr);
+    FJsonSerializer::Serialize(Payload.ToSharedRef(), Writer);
 
-        // Parse response and extract assistant text
-        TSharedPtr<FJsonObject> ResponseJson;
-        TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Response);
-        if (FJsonSerializer::Deserialize(Reader, ResponseJson) && ResponseJson.IsValid())
+    // Fire async HTTP POST → Python agent at port 55558
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+    Request->SetURL(TEXT("http://127.0.0.1:55558/chat"));
+    Request->SetVerb(TEXT("POST"));
+    Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+    Request->SetContentAsString(PayloadStr);
+
+    // Capture widget pointers for the callback
+    TSharedRef<SVerticalBox> VBox = ChatVBox.ToSharedRef();
+    TSharedRef<SScrollBox>   Scroll = ChatScrollBox.ToSharedRef();
+    TArray<FChatMessage>*    MsgsPtr = &Messages;
+    FString                  SessionId = CurrentSessionId;
+    FString                  DBPath = GetHistoryFilePath();
+
+    Request->OnProcessRequestComplete().BindLambda(
+        [this](FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bSucceeded)
         {
-            const TSharedPtr<FJsonObject>* ResultObj;
-            FString AssistantText;
-            if (ResponseJson->TryGetObjectField(TEXT("result"), ResultObj))
+            FString Reply;
+            if (bSucceeded && Resp.IsValid() && Resp->GetResponseCode() == 200)
             {
-                (*ResultObj)->TryGetStringField(TEXT("reply"), AssistantText);
+                TSharedPtr<FJsonObject> RespJson;
+                TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
+                if (FJsonSerializer::Deserialize(Reader, RespJson) && RespJson.IsValid())
+                {
+                    RespJson->TryGetStringField(TEXT("reply"), Reply);
+                }
+            }
+            else
+            {
+                Reply = bSucceeded
+                    ? FString::Printf(TEXT("HTTP error %d"), Resp.IsValid() ? Resp->GetResponseCode() : 0)
+                    : TEXT("❌ Could not reach Unreal AI Agent. Is 'unreal_mcp_agent.py' running?");
             }
 
-            if (!AssistantText.IsEmpty())
+            if (!Reply.IsEmpty())
             {
                 FChatMessage AssistantMsg;
                 AssistantMsg.Role      = TEXT("assistant");
-                AssistantMsg.Content   = AssistantText;
+                AssistantMsg.Content   = Reply;
                 AssistantMsg.Timestamp = FDateTime::Now();
                 Messages.Add(AssistantMsg);
                 AddMessageToUI(AssistantMsg);
@@ -205,7 +229,8 @@ FReply SUnrealMCPChatWidget::OnSendClicked()
                 ScrollToBottom();
             }
         }
-    }
+    );
+    Request->ProcessRequest();
 
     return FReply::Handled();
 }
