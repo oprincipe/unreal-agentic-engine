@@ -35,19 +35,38 @@ import logging
 import importlib.util
 import subprocess
 import threading
+import tempfile
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Optional, List, Dict, Any
 
 # ────────────────────────────────────────
-# Logging
+# Logging & Stdout redirection (Prevents WinError 6 on hidden launch)
 # ────────────────────────────────────────
+LOG_FILE = os.path.join(tempfile.gettempdir(), "unreal_mcp_agent.log")
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
+    handlers=[
+        logging.StreamHandler(sys.stdout) if sys.stdout else logging.NullHandler(),
+        logging.FileHandler(LOG_FILE, mode='w', encoding='utf-8')
+    ],
 )
 log = logging.getLogger("UnrealMCPAgent")
+
+class LoggerWriter:
+    def __init__(self, level):
+        self.level = level
+    def write(self, message):
+        if message != '\n':
+            self.level(message.rstrip())
+    def flush(self):
+        pass
+
+# Redirect missing or broken sys.stdout/stderr 
+sys.stdout = LoggerWriter(log.info)
+sys.stderr = LoggerWriter(log.error)
 
 AGENT_PORT   = 55558
 UNREAL_HOST  = "127.0.0.1"
