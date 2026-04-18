@@ -37,7 +37,7 @@ import subprocess
 import threading
 import tempfile
 from datetime import datetime
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Optional, List, Dict, Any
 
 # ────────────────────────────────────────
@@ -122,11 +122,13 @@ def init_db(db_path: str):
     conn.close()
 
 
+from datetime import datetime, timezone
+
 def save_message(db_path: str, session_id: str, role: str, content: str):
     conn = sqlite3.connect(db_path)
     conn.execute(
         "INSERT INTO messages (session_id, role, content, ts) VALUES (?, ?, ?, ?)",
-        (session_id, role, content, datetime.utcnow().isoformat()),
+        (session_id, role, content, datetime.now(timezone.utc).isoformat()),
     )
     conn.commit()
     conn.close()
@@ -580,7 +582,7 @@ def run_http_server(db_path: str, port: int = AGENT_PORT):
     global _db_path
     _db_path = db_path
     init_db(db_path)
-    server = HTTPServer(("127.0.0.1", port), AgentHandler)
+    server = ThreadingHTTPServer(("127.0.0.1", port), AgentHandler)
     log.info(f"Unreal AI Agent HTTP server listening on http://127.0.0.1:{port}")
     server.serve_forever()
 

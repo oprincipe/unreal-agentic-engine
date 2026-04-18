@@ -188,6 +188,7 @@ FReply SUnrealMCPChatWidget::OnSendClicked()
     Request->SetURL(TEXT("http://127.0.0.1:55558/chat"));
     Request->SetVerb(TEXT("POST"));
     Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+    Request->SetTimeout(300.0f); // 5 minutes timeout for slow LLMs
     Request->SetContentAsString(PayloadStr);
 
 
