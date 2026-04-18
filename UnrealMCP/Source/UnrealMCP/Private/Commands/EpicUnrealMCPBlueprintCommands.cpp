@@ -33,6 +33,8 @@
 #include "Engine/UserDefinedEnum.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshActor.h"
 // New tool includes
 #include "Engine/DataAsset.h"
 #include "InputAction.h"
@@ -1793,12 +1795,25 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleSpawnActor(const 
     FString ClassPath;
     if (!Params->TryGetStringField(TEXT("class_path"), ClassPath))
         return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'class_path' parameter"));
-    
-    UClass* SpawnClass = Cast<UClass>(UEditorAssetLibrary::LoadAsset(ClassPath));
-    if (!SpawnClass) // Might be a Blueprint
+    UObject* LoadedAsset = UEditorAssetLibrary::LoadAsset(ClassPath);
+    UClass* SpawnClass = Cast<UClass>(LoadedAsset);
+    UStaticMesh* LoadedMesh = nullptr;
+
+    if (!SpawnClass) // Might be a Blueprint or a StaticMesh
     {
-        UBlueprint* BP = Cast<UBlueprint>(UEditorAssetLibrary::LoadAsset(ClassPath));
-        if (BP) SpawnClass = BP->GeneratedClass;
+        UBlueprint* BP = Cast<UBlueprint>(LoadedAsset);
+        if (BP) 
+        {
+            SpawnClass = BP->GeneratedClass;
+        }
+        else 
+        {
+            LoadedMesh = Cast<UStaticMesh>(LoadedAsset);
+            if (LoadedMesh)
+            {
+                SpawnClass = AStaticMeshActor::StaticClass();
+            }
+        }
     }
 
     if (!SpawnClass || !SpawnClass->IsChildOf(AActor::StaticClass()))
@@ -1820,8 +1835,18 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleSpawnActor(const 
     AActor* Spawned = World->SpawnActor<AActor>(SpawnClass, Location, FRotator::ZeroRotator);
     if (!Spawned) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to spawn actor"));
 
+    if (LoadedMesh)
+    {
+        AStaticMeshActor* SMA = Cast<AStaticMeshActor>(Spawned);
+        if (SMA && SMA->GetStaticMeshComponent())
+        {
+            SMA->GetStaticMeshComponent()->SetStaticMesh(LoadedMesh);
+        }
+    }
+
     TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
-    ResultObj->SetStringField(TEXT("actor_name"), Spawned->GetActorNameOrLabel());
+    // Return full actor info matching the new python parsing code
+    ResultObj->SetStringField(TEXT("name"), Spawned->GetActorNameOrLabel());
     ResultObj->SetBoolField(TEXT("success"), true);
     return ResultObj;
 }
