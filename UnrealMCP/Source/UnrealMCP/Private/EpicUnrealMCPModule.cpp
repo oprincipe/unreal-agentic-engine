@@ -7,6 +7,8 @@
 #if WITH_EDITOR
 #include "PropertyEditorModule.h"
 #include "Settings/UnrealMCPEditorSettingsCustomization.h"
+#include "Settings/UnrealMCPEditorSettings.h"
+#include "ISettingsModule.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Docking/TabManager.h"
@@ -58,7 +60,18 @@ void FEpicUnrealMCPModule::StartupModule()
 	GLog->AddOutputDevice(LogBuffer);
 
 #if WITH_EDITOR
-	// Register settings detail customization
+	// Register settings page via ISettingsModule (most reliable way in UE 5.5+)
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->RegisterSettings(
+			"Project", "Plugins", "UnrealAIAgent",
+			FText::FromString("Unreal AI Agent"),
+			FText::FromString("Configure the AI provider for the native Unreal AI Agent chat panel."),
+			GetMutableDefault<UUnrealMCPEditorSettings>()
+		);
+	}
+
+	// Register settings detail customization (Test button)
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout(
 		"UnrealMCPEditorSettings",
@@ -92,7 +105,14 @@ void FEpicUnrealMCPModule::ShutdownModule()
 	}
 
 #if WITH_EDITOR
-	StopAgent(); // terminate Python agent process on shutdown
+	StopAgent();
+
+	// Unregister settings page
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->UnregisterSettings("Project", "Plugins", "UnrealAIAgent");
+	}
+
 	UToolMenus::UnregisterOwner(this);
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FName("UnrealMCPChatTab"));
 

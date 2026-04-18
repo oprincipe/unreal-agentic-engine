@@ -54,7 +54,8 @@ public class UnrealMCP : ModuleRules
 				"BlueprintGraph",
 				"Projects",
 				"AssetRegistry",
-				"AssetTools"
+				"AssetTools",
+				"Settings"
 			}
 		);
 		
