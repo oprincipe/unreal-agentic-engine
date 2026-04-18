@@ -142,11 +142,11 @@ FReply FUnrealMCPEditorSettingsCustomization::OnRefreshModelsClicked()
                 TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
                 if (!FJsonSerializer::Deserialize(Reader, Json)) return;
 
-                TArray<TSharedPtr<FJsonValue>> Models;
-                if (Json->TryGetArrayField(TEXT("models"), Models))
+                const TArray<TSharedPtr<FJsonValue>>* ModelsPtr = nullptr;
+                if (Json->TryGetArrayField(TEXT("models"), ModelsPtr) && ModelsPtr)
                 {
                     TArray<FString> Names;
-                    for (auto& M : Models)
+                    for (const TSharedPtr<FJsonValue>& M : *ModelsPtr)
                     {
                         FString Name;
                         if (M->TryGetString(Name)) Names.Add(Name);
