@@ -190,12 +190,6 @@ FReply SUnrealMCPChatWidget::OnSendClicked()
     Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
     Request->SetContentAsString(PayloadStr);
 
-    // Capture widget pointers for the callback
-    TSharedRef<SVerticalBox> VBox = ChatVBox.ToSharedRef();
-    TSharedRef<SScrollBox>   Scroll = ChatScrollBox.ToSharedRef();
-    TArray<FChatMessage>*    MsgsPtr = &Messages;
-    FString                  SessionId = CurrentSessionId;
-    FString                  DBPath = GetHistoryFilePath();
 
     Request->OnProcessRequestComplete().BindLambda(
         [this](FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bSucceeded)
