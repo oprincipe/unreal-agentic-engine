@@ -101,18 +101,23 @@ void SUnrealMCPChatWidget::Construct(const FArguments& InArgs)
                     SNew(SHorizontalBox)
                     + SHorizontalBox::Slot()
                     .FillWidth(1.f)
-                    .Padding(FMargin(0, 0, 8, 0))
                     [
-                        SAssignNew(InputTextBox, SMultiLineEditableTextBox)
-                        .HintText(LOCTEXT("InputHint", "Ask anything about your Unreal scene..."))
-                        .OnKeyDownHandler_Lambda([this](const FGeometry&, const FKeyEvent& Key) -> FReply
-                        {
-                            if (Key.GetKey() == EKeys::Enter && !Key.IsShiftDown())
+                        SNew(SBox)
+                        .MinDesiredHeight(40.f)
+                        .MaxDesiredHeight(150.f)
+                        [
+                            SAssignNew(InputTextBox, SMultiLineEditableTextBox)
+                            .HintText(LOCTEXT("InputHint", "Ask anything about your Unreal scene... (Shift+Enter for new line)"))
+                            .AutoWrapText(true)
+                            .OnKeyDownHandler_Lambda([this](const FGeometry&, const FKeyEvent& Key) -> FReply
                             {
-                                return OnSendClicked();
-                            }
-                            return FReply::Unhandled();
-                        })
+                                if (Key.GetKey() == EKeys::Enter && !Key.IsShiftDown())
+                                {
+                                    return OnSendClicked();
+                                }
+                                return FReply::Unhandled();
+                            })
+                        ]
                     ]
                     + SHorizontalBox::Slot()
                     .AutoWidth()
@@ -191,10 +196,13 @@ FReply SUnrealMCPChatWidget::OnSendClicked()
     Request->SetTimeout(300.0f); // 5-minute timeout for slow LLMs
     Request->SetContentAsString(PayloadStr);
 
+    ShowLoadingIndicator();
 
     Request->OnProcessRequestComplete().BindLambda(
         [this](FHttpRequestPtr Req, const FHttpResponsePtr& Resp, const bool bSucceeded)
         {
+            HideLoadingIndicator();
+            
             FString Reply;
             if (bSucceeded && Resp.IsValid() && Resp->GetResponseCode() == 200)
             {
@@ -228,6 +236,43 @@ FReply SUnrealMCPChatWidget::OnSendClicked()
     Request->ProcessRequest();
 
     return FReply::Handled();
+}
+
+void SUnrealMCPChatWidget::ShowLoadingIndicator()
+{
+    if (!ChatVBox.IsValid()) return;
+    
+    LoadingBubbleWidget = SNew(SHorizontalBox)
+    + SHorizontalBox::Slot()
+    .HAlign(HAlign_Left)
+    .FillWidth(1.f)
+    [
+        SNew(SBorder)
+        .Padding(FMargin(10.f, 6.f))
+        .BorderBackgroundColor(AssistantBubbleColor)
+        [
+            SNew(STextBlock)
+            .Text(FText::FromString(TEXT("Agent is thinking and processing scene... ⏳\n(This might take a while if indexing large levels)")))
+            .ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f, 1.f))
+        ]
+    ];
+    
+    ChatVBox->AddSlot()
+    .AutoHeight()
+    .Padding(FMargin(8.f, 4.f))
+    [
+        LoadingBubbleWidget.ToSharedRef()
+    ];
+    ScrollToBottom();
+}
+
+void SUnrealMCPChatWidget::HideLoadingIndicator()
+{
+    if (ChatVBox.IsValid() && LoadingBubbleWidget.IsValid())
+    {
+        ChatVBox->RemoveSlot(LoadingBubbleWidget.ToSharedRef());
+        LoadingBubbleWidget.Reset();
+    }
 }
 
 FReply SUnrealMCPChatWidget::OnNewChatClicked()

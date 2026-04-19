@@ -44,4 +44,9 @@ private:
     TSharedPtr<SScrollBox> ChatScrollBox;
     TSharedPtr<SMultiLineEditableTextBox> InputTextBox;
     TSharedPtr<SVerticalBox> ChatVBox;
+    
+    // UI State
+    void ShowLoadingIndicator();
+    void HideLoadingIndicator();
+    TSharedPtr<SWidget> LoadingBubbleWidget;
 };
