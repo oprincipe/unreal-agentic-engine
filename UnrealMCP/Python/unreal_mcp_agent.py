@@ -468,10 +468,10 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "blueprint_name": {"type": "string"},
-                "name": {"type": "string"},
+                "actor_name": {"type": "string"},
                 "location": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}}
             },
-            "required": ["blueprint_name"]
+            "required": ["blueprint_name", "actor_name"]
         }
     },
 ]
