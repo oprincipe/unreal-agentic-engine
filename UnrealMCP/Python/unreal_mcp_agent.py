@@ -383,6 +383,7 @@ def agent_anthropic(messages: List[Dict], api_key: str, model: str) -> str:
     system = (
         "You are an AI Agent operating inside Unreal Engine 5. "
         "You have tools to inspect, modify and control the editor world. "
+        "If the user asks about the name of a level, arena, or a past preference, ALWAYS use the `query_memory` tool first to check your persistent Graph Memory. "
         "Always prefer using tools over guessing. Be concise and direct."
     )
 
@@ -446,7 +447,9 @@ def agent_openai(messages: List[Dict], api_key: str, model: str) -> str:
         "role": "system",
         "content": (
             "You are an AI Agent operating inside Unreal Engine 5. "
-            "Use your tools to inspect and modify the editor world. Be concise."
+            "Use your tools to inspect and modify the editor world. "
+            "If the user asks about the name of a level, arena, or a past preference, ALWAYS use the `query_memory` tool first to check your persistent Graph Memory. "
+            "Be concise."
         ),
     }
     history = [system_msg] + [{"role": m["role"], "content": m["content"]} for m in messages]
@@ -501,7 +504,13 @@ def agent_google(messages: List[Dict], api_key: str, model: str) -> str:
         response = client.models.generate_content(
             model=model,
             contents=history,
-            config=types.GenerateContentConfig(tools=google_tools),
+            config=types.GenerateContentConfig(
+                tools=google_tools,
+                system_instruction=(
+                    "You are an AI Agent inside Unreal Engine 5. Use tools to inspect and modify the editor world. "
+                    "If the user asks about the name of a level, arena, or a past preference, ALWAYS use the `query_memory` tool first to check your persistent Graph Memory."
+                )
+            ),
         )
         candidate = response.candidates[0]
         history.append(candidate.content)
@@ -544,7 +553,13 @@ def agent_ollama(messages: List[Dict], api_key: str, model: str) -> str:
         for t in TOOLS
     ]
 
-    system_msg = {"role": "system", "content": "You are an AI Agent inside Unreal Engine 5. Use tools to inspect and modify the editor world."}
+    system_msg = {
+        "role": "system", 
+        "content": (
+            "You are an AI Agent inside Unreal Engine 5. Use tools to inspect and modify the editor world. "
+            "If the user asks about the name of a level, arena, or a past preference, ALWAYS use the `query_memory` tool first to check your persistent Graph Memory."
+        )
+    }
     history = [system_msg] + [{"role": m["role"], "content": m["content"]} for m in messages]
 
     while True:
