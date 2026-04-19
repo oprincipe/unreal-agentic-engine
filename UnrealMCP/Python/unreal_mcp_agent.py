@@ -370,7 +370,7 @@ TOOLS = [
             "properties": {
                 "blueprint_name": {"type": "string"},
                 "component_name": {"type": "string"},
-                "mesh_path": {"type": "string", "description": "Optional path to the mesh (e.g. '/Engine/BasicShapes/Cylinder')"},
+                "static_mesh": {"type": "string", "description": "Optional path to the mesh (e.g. '/Engine/BasicShapes/Cylinder')"},
                 "material": {"type": "string", "description": "Optional path to the material to assign."},
                 "scale": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}},
                 "collision_setup": {"type": "string", "description": "E.g., 'OverlapAllDynamic', 'BlockAll'"}
