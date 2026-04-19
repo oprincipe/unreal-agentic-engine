@@ -170,7 +170,9 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleSpawnActor(const TSh
     }
 
     FActorSpawnParameters SpawnParams;
-    SpawnParams.Name = *ActorName;
+    // IMPORTANT: Do NOT force SpawnParams.Name. If a recently deleted actor with the same Name 
+    // is pending GC, forcing the Title/Name here causes a Fatal Engine Crash.
+    // Instead, let Unreal generate a unique internal name, then set the user-facing Editor Label.
 
     if (ActorType == TEXT("StaticMeshActor"))
     {
@@ -217,6 +219,11 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleSpawnActor(const TSh
 
     if (NewActor)
     {
+        // Safely set the Editor-facing name (Outliner label) without risking GC naming crashes
+#if WITH_EDITOR
+        NewActor->SetActorLabel(ActorName);
+#endif
+
         // Set scale (since SpawnActor only takes location and rotation)
         FTransform Transform = NewActor->GetTransform();
         Transform.SetScale3D(Scale);
