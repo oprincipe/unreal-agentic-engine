@@ -244,6 +244,7 @@ FString UEpicUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const T
                      CommandType == TEXT("stop_play_in_editor") ||
                      CommandType == TEXT("get_editor_logs") ||
                      CommandType == TEXT("create_material_instance") ||
+                     CommandType == TEXT("search_blueprint_nodes") ||
                      CommandType == TEXT("duplicate_asset"))
             {
                 ResultJson = BlueprintCommands->HandleCommand(CommandType, Params);
