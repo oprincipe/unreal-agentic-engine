@@ -2,16 +2,14 @@
 #include "EpicUnrealMCPBridge.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
-#include "Interfaces/IPv4/IPv4Address.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonReader.h"
-#include "JsonObjectConverter.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/PlatformTime.h"
 
-FMCPServerRunnable::FMCPServerRunnable(UEpicUnrealMCPBridge* InBridge, TSharedPtr<FSocket> InListenerSocket)
+FMCPServerRunnable::FMCPServerRunnable(UEpicUnrealMCPBridge* InBridge, const TSharedPtr<FSocket>& InListenerSocket)
     : Bridge(InBridge)
     , ListenerSocket(InListenerSocket)
     , bRunning(true)
@@ -109,7 +107,7 @@ uint32 FMCPServerRunnable::Run()
                     }
                     else
                     {
-                        int32 LastError = (int32)ISocketSubsystem::Get()->GetLastErrorCode();
+                        const int32 LastError = (int32)ISocketSubsystem::Get()->GetLastErrorCode();
                         // Don't break the connection for WouldBlock error, which is normal for non-blocking sockets
                         bool bShouldBreak = true;
                         
@@ -177,7 +175,7 @@ void FMCPServerRunnable::HandleClientConnection(TSharedPtr<FSocket> InClientSock
     UE_LOG(LogTemp, Display, TEXT("MCPServerRunnable: Set socket to blocking mode"));
     
     // Properly read full message with timeout
-    const int32 MaxBufferSize = 4096;
+    constexpr int32 MaxBufferSize = 4096;
     uint8 Buffer[MaxBufferSize];
     FString MessageBuffer;
     
@@ -186,22 +184,21 @@ void FMCPServerRunnable::HandleClientConnection(TSharedPtr<FSocket> InClientSock
     while (bRunning && InClientSocket.IsValid())
     {
         // Log socket state
-        bool bIsConnected = InClientSocket->GetConnectionState() == SCS_Connected;
+        const bool bIsConnected = InClientSocket->GetConnectionState() == SCS_Connected;
         UE_LOG(LogTemp, Display, TEXT("MCPServerRunnable: Socket state - Connected: %s"), 
                bIsConnected ? TEXT("true") : TEXT("false"));
         
         // Log pending data status before receive
         uint32 PendingDataSize = 0;
-        bool HasPendingData = InClientSocket->HasPendingData(PendingDataSize);
+        const bool HasPendingData = InClientSocket->HasPendingData(PendingDataSize);
         UE_LOG(LogTemp, Display, TEXT("MCPServerRunnable: Before Recv - HasPendingData=%s, Size=%d"), 
                HasPendingData ? TEXT("true") : TEXT("false"), PendingDataSize);
         
         // Try to receive data with timeout
         int32 BytesRead = 0;
-        bool bReadSuccess = false;
-        
+
         UE_LOG(LogTemp, Display, TEXT("MCPServerRunnable: Attempting to receive data..."));
-        bReadSuccess = InClientSocket->Recv(Buffer, MaxBufferSize - 1, BytesRead, ESocketReceiveFlags::None);
+        const bool bReadSuccess = InClientSocket->Recv(Buffer, MaxBufferSize - 1, BytesRead, ESocketReceiveFlags::None);
         
         UE_LOG(LogTemp, Display, TEXT("MCPServerRunnable: Recv attempt complete - Success=%s, BytesRead=%d"), 
                bReadSuccess ? TEXT("true") : TEXT("false"), BytesRead);

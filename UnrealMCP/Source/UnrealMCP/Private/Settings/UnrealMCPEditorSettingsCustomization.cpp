@@ -6,7 +6,6 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
-#include "IDetailPropertyRow.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
@@ -42,7 +41,7 @@ static TArray<FString> GetDefaultModelsForProvider(EUnrealMCPProvider Provider)
     }
 }
 
-static void RebuildModelOptions(EUnrealMCPProvider Provider, const TArray<FString>& Models)
+static void RebuildModelOptions(const EUnrealMCPProvider Provider, const TArray<FString>& Models)
 {
     GModelOptions.Empty();
     GModelOptionsProvider = Provider;
@@ -64,7 +63,7 @@ void FUnrealMCPEditorSettingsCustomization::CustomizeDetails(IDetailLayoutBuilde
     CachedDetailBuilder = &DetailBuilder;
 
     const UUnrealMCPEditorSettings* Settings = GetDefault<UUnrealMCPEditorSettings>();
-    EUnrealMCPProvider CurrentProvider = Settings ? Settings->Provider : EUnrealMCPProvider::Anthropic;
+    const EUnrealMCPProvider CurrentProvider = Settings ? Settings->Provider : EUnrealMCPProvider::Anthropic;
 
     // ── Rebuild static list if provider changed ──
     if (GModelOptionsProvider != CurrentProvider || GModelOptions.IsEmpty())
@@ -108,7 +107,7 @@ void FUnrealMCPEditorSettingsCustomization::CustomizeDetails(IDetailLayoutBuilde
 
     // ── Make sure current value is in the list ──
     FString CurrentModel = Settings ? Settings->ModelName : TEXT("");
-    bool bCurrentInList = GModelOptions.ContainsByPredicate(
+    const bool bCurrentInList = GModelOptions.ContainsByPredicate(
         [&](const TSharedPtr<FString>& S){ return S.IsValid() && *S == CurrentModel; });
     if (!CurrentModel.IsEmpty() && !bCurrentInList)
     {
@@ -136,21 +135,29 @@ void FUnrealMCPEditorSettingsCustomization::CustomizeDetails(IDetailLayoutBuilde
                 [&](const TSharedPtr<FString>& S){ return S.IsValid() && *S == CurrentModel; })
                 ? *GModelOptions.FindByPredicate([&](const TSharedPtr<FString>& S){ return S.IsValid() && *S == CurrentModel; })
                 : (GModelOptions.Num() > 0 ? GModelOptions[0] : nullptr))
-            .OnSelectionChanged_Lambda([ModelNameProp](TSharedPtr<FString> Item, ESelectInfo::Type)
+            .OnSelectionChanged_Lambda([ModelNameProp](const TSharedPtr<FString>& Item, ESelectInfo::Type)
             {
                 if (Item.IsValid())
                 {
                     ModelNameProp->SetValue(*Item);
                 }
             })
-            .OnGenerateWidget_Lambda([](TSharedPtr<FString> Item) -> TSharedRef<SWidget>
+            .OnGenerateWidget_Lambda([](const TSharedPtr<FString>& Item) -> TSharedRef<SWidget>
             {
                 return SNew(STextBlock)
                     .Text(FText::FromString(Item.IsValid() ? *Item : TEXT("")));
             })
             [
                 SNew(STextBlock)
-                .Text_Lambda([CurrentModel]() { return FText::FromString(CurrentModel); })
+                .Text_Lambda([ModelNameProp]() 
+                { 
+                    FString Val;
+                    if (ModelNameProp->GetValue(Val) == FPropertyAccess::Success)
+                    {
+                        return FText::FromString(Val);
+                    }
+                    return FText::GetEmpty();
+                })
             ]
         ]
         + SHorizontalBox::Slot()
@@ -190,7 +197,7 @@ FReply FUnrealMCPEditorSettingsCustomization::OnRefreshModelsClicked()
     const UUnrealMCPEditorSettings* Settings = GetDefault<UUnrealMCPEditorSettings>();
     if (!Settings) return FReply::Handled();
 
-    bool bIsOllama = (Settings->Provider == EUnrealMCPProvider::Ollama);
+    const bool bIsOllama = (Settings->Provider == EUnrealMCPProvider::Ollama);
 
     if (bIsOllama)
     {
@@ -202,7 +209,7 @@ FReply FUnrealMCPEditorSettingsCustomization::OnRefreshModelsClicked()
         Req->SetURL(OllamaTagsUrl);
         Req->SetVerb(TEXT("GET"));
         Req->OnProcessRequestComplete().BindLambda(
-            [this](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOK)
+            [this](FHttpRequestPtr, const FHttpResponsePtr& Resp, const bool bOK)
             {
                 if (!bOK || !Resp.IsValid() || Resp->GetResponseCode() != 200)
                 {
@@ -211,7 +218,7 @@ FReply FUnrealMCPEditorSettingsCustomization::OnRefreshModelsClicked()
                     return;
                 }
                 TSharedPtr<FJsonObject> Json;
-                TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
+                const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
                 if (!FJsonSerializer::Deserialize(Reader, Json) || !Json.IsValid()) return;
 
                 const TArray<TSharedPtr<FJsonValue>>* ModelsPtr = nullptr;
@@ -289,11 +296,11 @@ FReply FUnrealMCPEditorSettingsCustomization::OnTestConnectionClicked()
         if (!VersionUrl.EndsWith(TEXT("/"))) VersionUrl += TEXT("/");
         VersionUrl += TEXT("api/version");
 
-        TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+        const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
         Req->SetURL(VersionUrl);
         Req->SetVerb(TEXT("GET"));
         Req->OnProcessRequestComplete().BindLambda(
-            [](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOK)
+            [](FHttpRequestPtr, const FHttpResponsePtr& Resp, const bool bOK)
             {
                 if (bOK && Resp.IsValid() && Resp->GetResponseCode() == 200)
                 {
@@ -318,7 +325,7 @@ FReply FUnrealMCPEditorSettingsCustomization::OnTestConnectionClicked()
 
     const UEnum* ProviderEnum = StaticEnum<EUnrealMCPProvider>();
     FString ProviderStr = ProviderEnum
-        ? ProviderEnum->GetDisplayNameTextByValue((int64)Settings->Provider).ToString()
+        ? ProviderEnum->GetDisplayNameTextByValue(static_cast<int64>(Settings->Provider)).ToString()
         : TEXT("Anthropic");
 
     FString JsonBody = FString::Printf(
@@ -329,19 +336,19 @@ FReply FUnrealMCPEditorSettingsCustomization::OnTestConnectionClicked()
     FTimerDelegate TimerDel;
     TimerDel.BindLambda([JsonBody]()
     {
-        TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+        const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
         Req->SetURL(TEXT("http://127.0.0.1:55558/test"));
         Req->SetVerb(TEXT("POST"));
         Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
         Req->SetContentAsString(JsonBody);
         Req->OnProcessRequestComplete().BindLambda(
-            [](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOK)
+            [](FHttpRequestPtr, const FHttpResponsePtr& Resp, const bool bOK)
             {
                 FString ResultText;
                 if (bOK && Resp.IsValid() && Resp->GetResponseCode() == 200)
                 {
                     TSharedPtr<FJsonObject> Json;
-                    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
+                    const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
                     if (FJsonSerializer::Deserialize(Reader, Json) && Json.IsValid())
                     {
                         Json->TryGetStringField(TEXT("result"), ResultText);

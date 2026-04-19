@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Json.h"
 
 /**
  * Handler class for Blueprint-related MCP commands

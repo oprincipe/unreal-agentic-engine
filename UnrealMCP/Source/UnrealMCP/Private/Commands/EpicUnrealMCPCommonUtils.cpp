@@ -13,16 +13,11 @@
 #include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Components/StaticMeshComponent.h"
-#include "Components/LightComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SceneComponent.h"
 #include "UObject/UObjectIterator.h"
-#include "Engine/Selection.h"
-#include "EditorAssetLibrary.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/BlueprintGeneratedClass.h"
-#include "BlueprintNodeSpawner.h"
-#include "BlueprintActionDatabase.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 
@@ -154,7 +149,7 @@ UBlueprint* FEpicUnrealMCPCommonUtils::FindBlueprint(const FString& BlueprintNam
 UBlueprint* FEpicUnrealMCPCommonUtils::FindBlueprintByName(const FString& BlueprintName)
 {
     // The correct object path for a Blueprint asset is /Game/Path/AssetName.AssetName
-    FString ObjectPath = FString::Printf(TEXT("/Game/Blueprints/%s.%s"), *BlueprintName, *BlueprintName);
+    const FString ObjectPath = FString::Printf(TEXT("/Game/Blueprints/%s.%s"), *BlueprintName, *BlueprintName);
 
     // First, try to load the object directly, as it's the fastest method.
     UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *ObjectPath);
@@ -165,8 +160,8 @@ UBlueprint* FEpicUnrealMCPCommonUtils::FindBlueprintByName(const FString& Bluepr
 
     // If direct loading fails, try to find the asset using the Asset Registry.
     // This is more robust for newly created assets.
-    FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-    FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
+    const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+    const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
 
     if (AssetData.IsValid())
     {
@@ -179,7 +174,7 @@ UBlueprint* FEpicUnrealMCPCommonUtils::FindBlueprintByName(const FString& Bluepr
 
     // Fallback for cases where the asset is in memory but not yet fully saved,
     // where it might be found via its package path.
-    FString PackagePath = TEXT("/Game/Blueprints/") + BlueprintName;
+    const FString PackagePath = TEXT("/Game/Blueprints/") + BlueprintName;
     Blueprint = FindObject<UBlueprint>(nullptr, *PackagePath);
     
     if (!Blueprint)
@@ -219,8 +214,8 @@ UK2Node_Event* FEpicUnrealMCPCommonUtils::CreateEventNode(UEdGraph* Graph, const
     {
         return nullptr;
     }
-    
-    UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(Graph);
+
+    const UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(Graph);
     if (!Blueprint)
     {
         return nullptr;
@@ -243,7 +238,7 @@ UK2Node_Event* FEpicUnrealMCPCommonUtils::CreateEventNode(UEdGraph* Graph, const
     
     // Find the function to create the event
     UClass* BlueprintClass = Blueprint->GeneratedClass;
-    UFunction* EventFunction = BlueprintClass->FindFunctionByName(FName(*EventName));
+    const UFunction* EventFunction = BlueprintClass->FindFunctionByName(FName(*EventName));
     
     if (EventFunction)
     {
@@ -265,7 +260,7 @@ UK2Node_Event* FEpicUnrealMCPCommonUtils::CreateEventNode(UEdGraph* Graph, const
     return EventNode;
 }
 
-UK2Node_CallFunction* FEpicUnrealMCPCommonUtils::CreateFunctionCallNode(UEdGraph* Graph, UFunction* Function, const FVector2D& Position)
+UK2Node_CallFunction* FEpicUnrealMCPCommonUtils::CreateFunctionCallNode(UEdGraph* Graph, const UFunction* Function, const FVector2D& Position)
 {
     if (!Graph || !Function)
     {
@@ -284,7 +279,7 @@ UK2Node_CallFunction* FEpicUnrealMCPCommonUtils::CreateFunctionCallNode(UEdGraph
     return FunctionNode;
 }
 
-UK2Node_VariableGet* FEpicUnrealMCPCommonUtils::CreateVariableGetNode(UEdGraph* Graph, UBlueprint* Blueprint, const FString& VariableName, const FVector2D& Position)
+UK2Node_VariableGet* FEpicUnrealMCPCommonUtils::CreateVariableGetNode(UEdGraph* Graph, const UBlueprint* Blueprint, const FString& VariableName, const FVector2D& Position)
 {
     if (!Graph || !Blueprint)
     {
@@ -292,11 +287,10 @@ UK2Node_VariableGet* FEpicUnrealMCPCommonUtils::CreateVariableGetNode(UEdGraph* 
     }
     
     UK2Node_VariableGet* VariableGetNode = NewObject<UK2Node_VariableGet>(Graph);
-    
-    FName VarName(*VariableName);
-    FProperty* Property = FindFProperty<FProperty>(Blueprint->GeneratedClass, VarName);
-    
-    if (Property)
+
+    const FName VarName(*VariableName);
+
+    if (const FProperty* Property = FindFProperty<FProperty>(Blueprint->GeneratedClass, VarName))
     {
         VariableGetNode->VariableReference.SetFromField<FProperty>(Property, false);
         VariableGetNode->NodePosX = Position.X;
@@ -311,7 +305,7 @@ UK2Node_VariableGet* FEpicUnrealMCPCommonUtils::CreateVariableGetNode(UEdGraph* 
     return nullptr;
 }
 
-UK2Node_VariableSet* FEpicUnrealMCPCommonUtils::CreateVariableSetNode(UEdGraph* Graph, UBlueprint* Blueprint, const FString& VariableName, const FVector2D& Position)
+UK2Node_VariableSet* FEpicUnrealMCPCommonUtils::CreateVariableSetNode(UEdGraph* Graph, const UBlueprint* Blueprint, const FString& VariableName, const FVector2D& Position)
 {
     if (!Graph || !Blueprint)
     {
@@ -319,11 +313,10 @@ UK2Node_VariableSet* FEpicUnrealMCPCommonUtils::CreateVariableSetNode(UEdGraph* 
     }
     
     UK2Node_VariableSet* VariableSetNode = NewObject<UK2Node_VariableSet>(Graph);
-    
-    FName VarName(*VariableName);
-    FProperty* Property = FindFProperty<FProperty>(Blueprint->GeneratedClass, VarName);
-    
-    if (Property)
+
+    const FName VarName(*VariableName);
+
+    if (const FProperty* Property = FindFProperty<FProperty>(Blueprint->GeneratedClass, VarName))
     {
         VariableSetNode->VariableReference.SetFromField<FProperty>(Property, false);
         VariableSetNode->NodePosX = Position.X;
@@ -375,7 +368,7 @@ UK2Node_Self* FEpicUnrealMCPCommonUtils::CreateSelfReferenceNode(UEdGraph* Graph
     return SelfNode;
 }
 
-bool FEpicUnrealMCPCommonUtils::ConnectGraphNodes(UEdGraph* Graph, UEdGraphNode* SourceNode, const FString& SourcePinName, 
+bool FEpicUnrealMCPCommonUtils::ConnectGraphNodes(const UEdGraph* Graph, UEdGraphNode* SourceNode, const FString& SourcePinName, 
                                            UEdGraphNode* TargetNode, const FString& TargetPinName)
 {
     if (!Graph || !SourceNode || !TargetNode)
@@ -406,7 +399,7 @@ UEdGraphPin* FEpicUnrealMCPCommonUtils::FindPin(UEdGraphNode* Node, const FStrin
     UE_LOG(LogTemp, Display, TEXT("FindPin: Looking for pin '%s' (Direction: %d) in node '%s'"), 
            *PinName, (int32)Direction, *Node->GetName());
     
-    for (UEdGraphPin* Pin : Node->Pins)
+    for (const UEdGraphPin* Pin : Node->Pins)
     {
         UE_LOG(LogTemp, Display, TEXT("  - Available pin: '%s', Direction: %d, Category: %s"), 
                *Pin->PinName.ToString(), (int32)Pin->Direction, *Pin->PinType.PinCategory.ToString());
@@ -451,7 +444,7 @@ UEdGraphPin* FEpicUnrealMCPCommonUtils::FindPin(UEdGraphNode* Node, const FStrin
 }
 
 // Actor utilities
-TSharedPtr<FJsonValue> FEpicUnrealMCPCommonUtils::ActorToJson(AActor* Actor)
+TSharedPtr<FJsonValue> FEpicUnrealMCPCommonUtils::ActorToJson(const AActor* Actor)
 {
     if (!Actor)
     {
@@ -486,7 +479,7 @@ TSharedPtr<FJsonValue> FEpicUnrealMCPCommonUtils::ActorToJson(AActor* Actor)
     return MakeShared<FJsonValueObject>(ActorObject);
 }
 
-TSharedPtr<FJsonObject> FEpicUnrealMCPCommonUtils::ActorToJsonObject(AActor* Actor, bool bDetailed)
+TSharedPtr<FJsonObject> FEpicUnrealMCPCommonUtils::ActorToJsonObject(const AActor* Actor, bool bDetailed)
 {
     if (!Actor)
     {
@@ -568,8 +561,8 @@ bool FEpicUnrealMCPCommonUtils::SetObjectProperty(UObject* Object, const FString
     }
     else if (Property->IsA<FIntProperty>())
     {
-        int32 IntValue = static_cast<int32>(Value->AsNumber());
-        FIntProperty* IntProperty = CastField<FIntProperty>(Property);
+        const int32 IntValue = static_cast<int32>(Value->AsNumber());
+        const FIntProperty* IntProperty = CastField<FIntProperty>(Property);
         if (IntProperty)
         {
             IntProperty->SetPropertyValue_InContainer(Object, IntValue);
@@ -588,8 +581,8 @@ bool FEpicUnrealMCPCommonUtils::SetObjectProperty(UObject* Object, const FString
     }
     else if (Property->IsA<FByteProperty>())
     {
-        FByteProperty* ByteProp = CastField<FByteProperty>(Property);
-        UEnum* EnumDef = ByteProp ? ByteProp->GetIntPropertyEnum() : nullptr;
+        const FByteProperty* ByteProp = CastField<FByteProperty>(Property);
+        const UEnum* EnumDef = ByteProp ? ByteProp->GetIntPropertyEnum() : nullptr;
         
         // If this is a TEnumAsByte property (has associated enum)
         if (EnumDef)
@@ -597,7 +590,7 @@ bool FEpicUnrealMCPCommonUtils::SetObjectProperty(UObject* Object, const FString
             // Handle numeric value
             if (Value->Type == EJson::Number)
             {
-                uint8 ByteValue = static_cast<uint8>(Value->AsNumber());
+                const uint8 ByteValue = static_cast<uint8>(Value->AsNumber());
                 ByteProp->SetPropertyValue(PropertyAddr, ByteValue);
                 
                 UE_LOG(LogTemp, Display, TEXT("Setting enum property %s to numeric value: %d"), 
@@ -612,7 +605,7 @@ bool FEpicUnrealMCPCommonUtils::SetObjectProperty(UObject* Object, const FString
                 // Try to convert numeric string to number first
                 if (EnumValueName.IsNumeric())
                 {
-                    uint8 ByteValue = FCString::Atoi(*EnumValueName);
+                    const uint8 ByteValue = FCString::Atoi(*EnumValueName);
                     ByteProp->SetPropertyValue(PropertyAddr, ByteValue);
                     
                     UE_LOG(LogTemp, Display, TEXT("Setting enum property %s to numeric string value: %s -> %d"), 
@@ -647,7 +640,7 @@ bool FEpicUnrealMCPCommonUtils::SetObjectProperty(UObject* Object, const FString
                     UE_LOG(LogTemp, Warning, TEXT("Could not find enum value for '%s'. Available options:"), *EnumValueName);
                     for (int32 i = 0; i < EnumDef->NumEnums(); i++)
                     {
-                        UE_LOG(LogTemp, Warning, TEXT("  - %s (value: %d)"), 
+                        UE_LOG(LogTemp, Warning, TEXT("  - %s (value: %lld)"), 
                                *EnumDef->GetNameStringByIndex(i), EnumDef->GetValueByIndex(i));
                     }
                     
@@ -659,23 +652,23 @@ bool FEpicUnrealMCPCommonUtils::SetObjectProperty(UObject* Object, const FString
         else
         {
             // Regular byte property
-            uint8 ByteValue = static_cast<uint8>(Value->AsNumber());
+            const uint8 ByteValue = static_cast<uint8>(Value->AsNumber());
             ByteProp->SetPropertyValue(PropertyAddr, ByteValue);
             return true;
         }
     }
     else if (Property->IsA<FEnumProperty>())
     {
-        FEnumProperty* EnumProp = CastField<FEnumProperty>(Property);
-        UEnum* EnumDef = EnumProp ? EnumProp->GetEnum() : nullptr;
-        FNumericProperty* UnderlyingNumericProp = EnumProp ? EnumProp->GetUnderlyingProperty() : nullptr;
+        const FEnumProperty* EnumProp = CastField<FEnumProperty>(Property);
+        const UEnum* EnumDef = EnumProp ? EnumProp->GetEnum() : nullptr;
+        const FNumericProperty* UnderlyingNumericProp = EnumProp ? EnumProp->GetUnderlyingProperty() : nullptr;
         
         if (EnumDef && UnderlyingNumericProp)
         {
             // Handle numeric value
             if (Value->Type == EJson::Number)
             {
-                int64 EnumValue = static_cast<int64>(Value->AsNumber());
+                const int64 EnumValue = static_cast<int64>(Value->AsNumber());
                 UnderlyingNumericProp->SetIntPropertyValue(PropertyAddr, EnumValue);
                 
                 UE_LOG(LogTemp, Display, TEXT("Setting enum property %s to numeric value: %lld"), 
@@ -690,7 +683,7 @@ bool FEpicUnrealMCPCommonUtils::SetObjectProperty(UObject* Object, const FString
                 // Try to convert numeric string to number first
                 if (EnumValueName.IsNumeric())
                 {
-                    int64 EnumValue = FCString::Atoi64(*EnumValueName);
+                    const int64 EnumValue = FCString::Atoi64(*EnumValueName);
                     UnderlyingNumericProp->SetIntPropertyValue(PropertyAddr, EnumValue);
                     
                     UE_LOG(LogTemp, Display, TEXT("Setting enum property %s to numeric string value: %s -> %lld"), 
@@ -725,7 +718,7 @@ bool FEpicUnrealMCPCommonUtils::SetObjectProperty(UObject* Object, const FString
                     UE_LOG(LogTemp, Warning, TEXT("Could not find enum value for '%s'. Available options:"), *EnumValueName);
                     for (int32 i = 0; i < EnumDef->NumEnums(); i++)
                     {
-                        UE_LOG(LogTemp, Warning, TEXT("  - %s (value: %d)"), 
+                        UE_LOG(LogTemp, Warning, TEXT("  - %s (value: %lld)"), 
                                *EnumDef->GetNameStringByIndex(i), EnumDef->GetValueByIndex(i));
                     }
                     

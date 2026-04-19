@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "HAL/Runnable.h"
 #include "Sockets.h"
-#include "Interfaces/IPv4/IPv4Address.h"
 
 class UEpicUnrealMCPBridge;
 
@@ -13,8 +12,8 @@ class UEpicUnrealMCPBridge;
 class FMCPServerRunnable : public FRunnable
 {
 public:
-	FMCPServerRunnable(UEpicUnrealMCPBridge* InBridge, TSharedPtr<FSocket> InListenerSocket);
-	virtual ~FMCPServerRunnable();
+	FMCPServerRunnable(UEpicUnrealMCPBridge* InBridge, const TSharedPtr<FSocket>& InListenerSocket);
+	virtual ~FMCPServerRunnable() override;
 
 	// FRunnable interface
 	virtual bool Init() override;

@@ -18,7 +18,7 @@ public:
     SLATE_END_ARGS()
 
     void Construct(const FArguments& InArgs);
-    virtual ~SUnrealMCPChatWidget();
+    virtual ~SUnrealMCPChatWidget() override;
 
 private:
     // UI Actions

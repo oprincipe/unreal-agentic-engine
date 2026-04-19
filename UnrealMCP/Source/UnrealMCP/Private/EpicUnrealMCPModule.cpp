@@ -1,5 +1,4 @@
 #include "EpicUnrealMCPModule.h"
-#include "EpicUnrealMCPBridge.h"
 #include "Modules/ModuleManager.h"
 #include "EditorSubsystem.h"
 #include "Editor.h"
@@ -12,7 +11,6 @@
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Docking/TabManager.h"
-#include "LevelEditor.h"
 #include "UI/SUnrealMCPChatWidget.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/MessageDialog.h"

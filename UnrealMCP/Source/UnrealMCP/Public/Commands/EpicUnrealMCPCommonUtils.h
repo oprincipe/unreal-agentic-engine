@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Json.h"
 
 // Forward declarations
 class AActor;
@@ -33,8 +32,8 @@ public:
     static FRotator GetRotatorFromJson(const TSharedPtr<FJsonObject>& JsonObject, const FString& FieldName);
     
     // Actor utilities
-    static TSharedPtr<FJsonValue> ActorToJson(AActor* Actor);
-    static TSharedPtr<FJsonObject> ActorToJsonObject(AActor* Actor, bool bDetailed = false);
+    static TSharedPtr<FJsonValue> ActorToJson(const AActor* Actor);
+    static TSharedPtr<FJsonObject> ActorToJsonObject(const AActor* Actor, bool bDetailed = false);
     
     // Blueprint utilities
     static UBlueprint* FindBlueprint(const FString& BlueprintName);
@@ -43,12 +42,12 @@ public:
     
     // Blueprint node utilities
     static UK2Node_Event* CreateEventNode(UEdGraph* Graph, const FString& EventName, const FVector2D& Position);
-    static UK2Node_CallFunction* CreateFunctionCallNode(UEdGraph* Graph, UFunction* Function, const FVector2D& Position);
-    static UK2Node_VariableGet* CreateVariableGetNode(UEdGraph* Graph, UBlueprint* Blueprint, const FString& VariableName, const FVector2D& Position);
-    static UK2Node_VariableSet* CreateVariableSetNode(UEdGraph* Graph, UBlueprint* Blueprint, const FString& VariableName, const FVector2D& Position);
+    static UK2Node_CallFunction* CreateFunctionCallNode(UEdGraph* Graph, const UFunction* Function, const FVector2D& Position);
+    static UK2Node_VariableGet* CreateVariableGetNode(UEdGraph* Graph, const UBlueprint* Blueprint, const FString& VariableName, const FVector2D& Position);
+    static UK2Node_VariableSet* CreateVariableSetNode(UEdGraph* Graph, const UBlueprint* Blueprint, const FString& VariableName, const FVector2D& Position);
     static UK2Node_InputAction* CreateInputActionNode(UEdGraph* Graph, const FString& ActionName, const FVector2D& Position);
     static UK2Node_Self* CreateSelfReferenceNode(UEdGraph* Graph, const FVector2D& Position);
-    static bool ConnectGraphNodes(UEdGraph* Graph, UEdGraphNode* SourceNode, const FString& SourcePinName, 
+    static bool ConnectGraphNodes(const UEdGraph* Graph, UEdGraphNode* SourceNode, const FString& SourcePinName, 
                                 UEdGraphNode* TargetNode, const FString& TargetPinName);
     static UEdGraphPin* FindPin(UEdGraphNode* Node, const FString& PinName, EEdGraphPinDirection Direction = EGPD_MAX);
     static UK2Node_Event* FindExistingEventNode(UEdGraph* Graph, const FString& EventName);
