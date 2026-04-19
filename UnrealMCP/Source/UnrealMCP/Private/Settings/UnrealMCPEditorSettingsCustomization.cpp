@@ -265,20 +265,120 @@ FReply FUnrealMCPEditorSettingsCustomization::OnRefreshModelsClicked()
     }
     else
     {
-        // For cloud providers just refresh from hardcoded list
-        UUnrealMCPEditorSettings* MutableSettings = GetMutableDefault<UUnrealMCPEditorSettings>();
-        if (MutableSettings)
+        const UUnrealMCPEditorSettings* S = GetDefault<UUnrealMCPEditorSettings>();
+        FString ApiKey = S ? S->ApiKey : TEXT("");
+        EUnrealMCPProvider Prov = S ? S->Provider : EUnrealMCPProvider::Anthropic;
+
+        if (ApiKey.IsEmpty())
         {
-            TArray<FString> Defaults = GetDefaultModelsForProvider(MutableSettings->Provider);
-            RebuildModelOptions(MutableSettings->Provider, Defaults);
-            
-            if (Defaults.Num() > 0 && !Defaults.Contains(MutableSettings->ModelName))
-            {
-                MutableSettings->ModelName = Defaults[0];
-                MutableSettings->SaveConfig();
-            }
-            if (CachedDetailBuilder) CachedDetailBuilder->ForceRefreshDetails();
+            FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT("API Key is empty. Please enter an API key first.")));
+            return FReply::Handled();
         }
+
+        TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+        
+        if (Prov == EUnrealMCPProvider::OpenAI)
+        {
+            Req->SetURL(TEXT("https://api.openai.com/v1/models"));
+            Req->SetVerb(TEXT("GET"));
+            Req->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *ApiKey));
+        }
+        else if (Prov == EUnrealMCPProvider::Google)
+        {
+            Req->SetURL(FString::Printf(TEXT("https://generativelanguage.googleapis.com/v1beta/models?key=%s"), *ApiKey));
+            Req->SetVerb(TEXT("GET"));
+        }
+        else if (Prov == EUnrealMCPProvider::Anthropic)
+        {
+            Req->SetURL(TEXT("https://api.anthropic.com/v1/models"));
+            Req->SetVerb(TEXT("GET"));
+            Req->SetHeader(TEXT("x-api-key"), ApiKey);
+            Req->SetHeader(TEXT("anthropic-version"), TEXT("2023-06-01"));
+        }
+
+        Req->OnProcessRequestComplete().BindLambda(
+            [this, Prov](FHttpRequestPtr, const FHttpResponsePtr& Resp, const bool bOK)
+            {
+                if (!bOK || !Resp.IsValid() || Resp->GetResponseCode() != 200)
+                {
+                    FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(
+                        FString::Printf(TEXT("Failed to fetch models: HTTP %d"), Resp.IsValid() ? Resp->GetResponseCode() : 0)));
+                    return;
+                }
+
+                TSharedPtr<FJsonObject> Json;
+                const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
+                if (!FJsonSerializer::Deserialize(Reader, Json) || !Json.IsValid()) return;
+
+                TArray<FString> Names;
+                
+                if (Prov == EUnrealMCPProvider::Google)
+                {
+                    const TArray<TSharedPtr<FJsonValue>>* ModelsPtr = nullptr;
+                    if (Json->TryGetArrayField(TEXT("models"), ModelsPtr) && ModelsPtr)
+                    {
+                        for (const auto& M : *ModelsPtr)
+                        {
+                            FString Name;
+                            const TSharedPtr<FJsonObject>* Obj;
+                            if (M->TryGetObject(Obj) && (*Obj)->TryGetStringField(TEXT("name"), Name))
+                            {
+                                Name.RemoveFromStart(TEXT("models/"));
+                                Names.Add(Name);
+                            }
+                        }
+                    }
+                }
+                else // OpenAI & Anthropic use "data" array with "id"
+                {
+                    const TArray<TSharedPtr<FJsonValue>>* DataPtr = nullptr;
+                    if (Json->TryGetArrayField(TEXT("data"), DataPtr) && DataPtr)
+                    {
+                        for (const auto& M : *DataPtr)
+                        {
+                            FString Id;
+                            const TSharedPtr<FJsonObject>* Obj;
+                            if (M->TryGetObject(Obj) && (*Obj)->TryGetStringField(TEXT("id"), Id))
+                            {
+                                // Filter OpenAI models to avoid huge lists
+                                if (Prov == EUnrealMCPProvider::OpenAI)
+                                {
+                                    if (Id.StartsWith(TEXT("gpt")) || Id.StartsWith(TEXT("o1")) || Id.StartsWith(TEXT("o3")))
+                                    {
+                                        Names.Add(Id);
+                                    }
+                                }
+                                else
+                                {
+                                    Names.Add(Id);
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (Prov == EUnrealMCPProvider::OpenAI)
+                    {
+                        Names.Sort([](const FString& A, const FString& B) { return A > B; });
+                    }
+                }
+
+                if (Names.IsEmpty())
+                {
+                    FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT("No models could be parsed from the API.")));
+                    return;
+                }
+
+                RebuildModelOptions(Prov, Names);
+                UUnrealMCPEditorSettings* MutableSettings = GetMutableDefault<UUnrealMCPEditorSettings>();
+                if (MutableSettings && !Names.Contains(MutableSettings->ModelName))
+                {
+                    MutableSettings->ModelName = Names[0];
+                    MutableSettings->SaveConfig();
+                }
+                if (CachedDetailBuilder) CachedDetailBuilder->ForceRefreshDetails();
+            });
+            
+        Req->ProcessRequest();
     }
 
     return FReply::Handled();
