@@ -298,23 +298,28 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleAddComponentToBlu
         return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Blueprint not found: %s"), *BlueprintName));
     }
 
-    UClass* ComponentClass = FindObject<UClass>(nullptr, *ComponentType);
-
-    if (!ComponentClass && !ComponentType.EndsWith(TEXT("Component")))
+    UClass* ComponentClass = nullptr;
+    
+    FString SearchName = ComponentType;
+    if (SearchName.StartsWith(TEXT("U")))
     {
-        const FString ComponentTypeWithSuffix = ComponentType + TEXT("Component");
-        ComponentClass = FindObject<UClass>(nullptr, *ComponentTypeWithSuffix);
+        SearchName = SearchName.Mid(1);
     }
+    
+    FString SearchNameWithComp = SearchName.EndsWith(TEXT("Component")) ? SearchName : SearchName + TEXT("Component");
 
-    if (!ComponentClass && !ComponentType.StartsWith(TEXT("U")))
+    for (TObjectIterator<UClass> It; It; ++It)
     {
-        const FString ComponentTypeWithPrefix = TEXT("U") + ComponentType;
-        ComponentClass = FindObject<UClass>(nullptr, *ComponentTypeWithPrefix);
-
-        if (!ComponentClass && !ComponentType.EndsWith(TEXT("Component")))
+        UClass* Cls = *It;
+        FString ClsName = Cls->GetName();
+        
+        if (ClsName == SearchName || ClsName == SearchNameWithComp)
         {
-            const FString ComponentTypeWithBoth = TEXT("U") + ComponentType + TEXT("Component");
-            ComponentClass = FindObject<UClass>(nullptr, *ComponentTypeWithBoth);
+            if (Cls->IsChildOf(UActorComponent::StaticClass()))
+            {
+                ComponentClass = Cls;
+                break;
+            }
         }
     }
 
