@@ -72,29 +72,39 @@ def get_lightrag(provider: str, api_key: str, model: str):
     
     if prov_lower == "openai":
         from lightrag.llm.openai import openai_complete_if_cache, openai_embed
-        llm_model_func = openai_complete_if_cache
+        async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+            kwargs.setdefault('max_tokens', 8192)
+            return await openai_complete_if_cache(model, prompt, system_prompt, history_messages, **kwargs)
         embedding_func = openai_embed
 
     elif prov_lower == "anthropic":
         from lightrag.llm.anthropic import anthropic_complete_if_cache
         from lightrag.llm.openai import openai_embed
-        llm_model_func = anthropic_complete_if_cache
+        async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+            kwargs.setdefault('max_tokens', 8192)
+            return await anthropic_complete_if_cache(model, prompt, system_prompt, history_messages, **kwargs)
         embedding_func = openai_embed
         log.info("Anthropic provider selected: Using OpenAI for embeddings. Ensure OPENAI_API_KEY is set.")
 
     elif prov_lower == "google":
         from lightrag.llm.google import gemini_complete_if_cache, gemini_embed
-        llm_model_func = gemini_complete_if_cache
+        async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+            kwargs.setdefault('max_tokens', 8192)
+            return await gemini_complete_if_cache(model, prompt, system_prompt, history_messages, **kwargs)
         embedding_func = gemini_embed
 
     elif prov_lower == "ollama":
         from lightrag.llm.ollama import ollama_model_if_cache, ollama_embed
-        llm_model_func = ollama_model_if_cache
+        async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+            kwargs.setdefault('max_tokens', 8192)
+            return await ollama_model_if_cache(model, prompt, system_prompt, history_messages, **kwargs)
         embedding_func = ollama_embed
         
     else:
         from lightrag.llm.openai import openai_complete_if_cache, openai_embed
-        llm_model_func = openai_complete_if_cache
+        async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+            kwargs.setdefault('max_tokens', 8192)
+            return await openai_complete_if_cache(model, prompt, system_prompt, history_messages, **kwargs)
         embedding_func = openai_embed
 
     try:
