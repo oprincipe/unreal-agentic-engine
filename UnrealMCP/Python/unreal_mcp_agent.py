@@ -200,21 +200,29 @@ TOOLS = [
     },
     {
         "name": "spawn_actor",
-        "description": "Spawn an actor or static mesh into the Unreal level at the given location with optional rotation and scale.",
+        "description": (
+            "Spawn an actor into the Unreal level. "
+            "Supported types: 'StaticMeshActor' (optionally add 'static_mesh' path, e.g. /Engine/BasicShapes/Cube), "
+            "'PointLight', 'SpotLight', 'DirectionalLight', 'CameraActor'. "
+            "Always provide a unique 'name' and a 'type'."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "class_path": {"type": "string", "description": "Blueprint or mesh path e.g. /Engine/BasicShapes/Cube"},
+                "name": {"type": "string", "description": "Unique actor name, e.g. 'PointLight1'"},
+                "type": {
+                    "type": "string",
+                    "description": "Actor class: StaticMeshActor | PointLight | SpotLight | DirectionalLight | CameraActor",
+                },
+                "static_mesh": {"type": "string", "description": "Optional mesh path for StaticMeshActor, e.g. /Engine/BasicShapes/Cube"},
                 "location": {
                     "type": "object",
-                    "properties": {
-                        "x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"},
-                    },
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
                 },
                 "rotation": {"type": "object", "properties": {"pitch": {"type": "number"}, "yaw": {"type": "number"}, "roll": {"type": "number"}}},
                 "scale": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}},
             },
-            "required": ["class_path"],
+            "required": ["name", "type"],
         },
     },
     {
