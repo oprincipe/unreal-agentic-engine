@@ -207,7 +207,8 @@ FString UEpicUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const T
             else if (CommandType == TEXT("find_actors_by_name") ||
                      CommandType == TEXT("delete_actor") ||
                      CommandType == TEXT("spawn_blueprint_actor") ||
-                     CommandType == TEXT("set_actor_color"))
+                     CommandType == TEXT("set_actor_color") ||
+                     CommandType == TEXT("set_actor_material"))
             {
                 ResultJson = EditorCommands->HandleCommand(CommandType, Params);
             }
