@@ -109,6 +109,11 @@ def get_lightrag(provider: str, api_key: str, model: str):
             llm_model_func=llm_model_func,
             embedding_func=embedding_func
         )
+        import asyncio
+        from lightrag.utils import always_get_an_event_loop
+        loop = always_get_an_event_loop()
+        loop.run_until_complete(_lightrag_instance.initialize_storages())
+        
         _current_provider = provider
         _current_model = model
     except Exception as e:

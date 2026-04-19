@@ -722,10 +722,11 @@ class AgentHandler(BaseHTTPRequestHandler):
             log.info("\n[!] Restart requested by Unreal UI. Rebooting Agent...\n")
             
             def do_restart():
-                import time, os, sys
-                time.sleep(0.5)
-                # Restart the current python process
-                os.execv(sys.executable, ['python'] + sys.argv)
+                import time, os, sys, subprocess
+                time.sleep(1.0)
+                # Restart the current python process robustly on Windows
+                subprocess.Popen([sys.executable] + sys.argv, creationflags=subprocess.CREATE_NEW_CONSOLE)
+                os._exit(0)
                 
             import threading
             threading.Thread(target=do_restart, daemon=True).start()
