@@ -116,6 +116,17 @@ FVector FEpicUnrealMCPCommonUtils::GetVectorFromJson(const TSharedPtr<FJsonObjec
         Result.Y = (float)(*JsonArray)[1]->AsNumber();
         Result.Z = (float)(*JsonArray)[2]->AsNumber();
     }
+    else
+    {
+        const TSharedPtr<FJsonObject>* JsonObjPtr;
+        if (JsonObject->TryGetObjectField(FieldName, JsonObjPtr))
+        {
+            TSharedPtr<FJsonObject> Obj = *JsonObjPtr;
+            if (Obj->HasField(TEXT("x"))) Result.X = (float)Obj->GetNumberField(TEXT("x"));
+            if (Obj->HasField(TEXT("y"))) Result.Y = (float)Obj->GetNumberField(TEXT("y"));
+            if (Obj->HasField(TEXT("z"))) Result.Z = (float)Obj->GetNumberField(TEXT("z"));
+        }
+    }
     
     return Result;
 }
@@ -135,6 +146,17 @@ FRotator FEpicUnrealMCPCommonUtils::GetRotatorFromJson(const TSharedPtr<FJsonObj
         Result.Pitch = (float)(*JsonArray)[0]->AsNumber();
         Result.Yaw = (float)(*JsonArray)[1]->AsNumber();
         Result.Roll = (float)(*JsonArray)[2]->AsNumber();
+    }
+    else
+    {
+        const TSharedPtr<FJsonObject>* JsonObjPtr;
+        if (JsonObject->TryGetObjectField(FieldName, JsonObjPtr))
+        {
+            TSharedPtr<FJsonObject> Obj = *JsonObjPtr;
+            if (Obj->HasField(TEXT("pitch"))) Result.Pitch = (float)Obj->GetNumberField(TEXT("pitch"));
+            if (Obj->HasField(TEXT("yaw"))) Result.Yaw = (float)Obj->GetNumberField(TEXT("yaw"));
+            if (Obj->HasField(TEXT("roll"))) Result.Roll = (float)Obj->GetNumberField(TEXT("roll"));
+        }
     }
     
     return Result;
