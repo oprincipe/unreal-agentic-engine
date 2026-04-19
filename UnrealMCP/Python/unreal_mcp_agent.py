@@ -28,6 +28,7 @@ Persistence:
 
 import os
 import sys
+import io
 import json
 import socket
 import sqlite3
@@ -63,6 +64,10 @@ class LoggerWriter:
             self.level(message.rstrip())
     def flush(self):
         pass
+    def isatty(self):
+        return False
+    def fileno(self):
+        raise io.UnsupportedOperation("fileno")
 
 # Redirect missing or broken sys.stdout/stderr 
 sys.stdout = LoggerWriter(log.info)
