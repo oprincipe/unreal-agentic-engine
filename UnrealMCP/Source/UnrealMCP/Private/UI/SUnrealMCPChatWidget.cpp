@@ -318,6 +318,13 @@ void SUnrealMCPChatWidget::LoadChatHistory()
         FChatMessage Msg;
         (*Obj)->TryGetStringField(TEXT("role"),    Msg.Role);
         (*Obj)->TryGetStringField(TEXT("content"), Msg.Content);
+        
+        FString SavedSessionId;
+        if ((*Obj)->TryGetStringField(TEXT("session_id"), SavedSessionId) && !SavedSessionId.IsEmpty())
+        {
+            CurrentSessionId = SavedSessionId;
+        }
+        
         Messages.Add(Msg);
     }
 }
