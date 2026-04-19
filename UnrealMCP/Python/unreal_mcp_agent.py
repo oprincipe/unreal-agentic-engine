@@ -336,6 +336,143 @@ TOOLS = [
             "required": ["question"],
         },
     },
+    {
+        "name": "create_blueprint",
+        "description": "Create a new Blueprint class in the /Game/Blueprints/ folder.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Name of the blueprint (e.g. 'BP_PickupToken')"},
+                "parent_class": {"type": "string", "description": "Parent class (default is 'Actor')"}
+            },
+            "required": ["name"]
+        }
+    },
+    {
+        "name": "add_component_to_blueprint",
+        "description": "Add a component (StaticMesh, SphereCollision, BoxCollision) to a Blueprint.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "blueprint_name": {"type": "string"},
+                "component_name": {"type": "string", "description": "Name to give the component"},
+                "component_type": {"type": "string", "description": "'StaticMesh', 'SphereCollision', 'BoxCollision', 'Scene'"},
+                "parent_component": {"type": "string", "description": "Optional parent component name"}
+            },
+            "required": ["blueprint_name", "component_name", "component_type"]
+        }
+    },
+    {
+        "name": "set_static_mesh_properties",
+        "description": "Set properties of a StaticMesh component inside a blueprint.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "blueprint_name": {"type": "string"},
+                "component_name": {"type": "string"},
+                "mesh_path": {"type": "string", "description": "Optional path to the mesh (e.g. '/Engine/BasicShapes/Cylinder')"},
+                "scale": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}},
+                "collision_setup": {"type": "string", "description": "E.g., 'OverlapAllDynamic', 'BlockAll'"}
+            },
+            "required": ["blueprint_name", "component_name"]
+        }
+    },
+    {
+        "name": "set_mesh_material_color",
+        "description": "Apply a Material or Color to a Mesh component inside a blueprint.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "blueprint_name": {"type": "string"},
+                "component_name": {"type": "string"},
+                "material_path": {"type": "string"},
+                "color_hex": {"type": "string"}
+            },
+            "required": ["blueprint_name", "component_name"]
+        }
+    },
+    {
+        "name": "set_physics_properties",
+        "description": "Set properties of a Collision component inside a blueprint.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "blueprint_name": {"type": "string"},
+                "component_name": {"type": "string"},
+                "simulate_physics": {"type": "boolean"},
+                "collision_profile": {"type": "string"},
+                "generate_overlap_events": {"type": "boolean"}
+            },
+            "required": ["blueprint_name", "component_name"]
+        }
+    },
+    {
+        "name": "add_blueprint_event_node",
+        "description": "Add an event node to the Blueprint Event Graph.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "blueprint_name": {"type": "string"},
+                "event_name": {"type": "string", "description": "E.g., 'TakeDamage', 'ActorBeginOverlap'"},
+                "pos_x": {"type": "number"},
+                "pos_y": {"type": "number"}
+            },
+            "required": ["blueprint_name", "event_name"]
+        }
+    },
+    {
+        "name": "add_blueprint_function_node",
+        "description": "Add a function call node (e.g. 'DestroyActor', 'PrintString').",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "blueprint_name": {"type": "string"},
+                "function_name": {"type": "string"},
+                "pos_x": {"type": "number"},
+                "pos_y": {"type": "number"}
+            },
+            "required": ["blueprint_name", "function_name"]
+        }
+    },
+    {
+        "name": "connect_blueprint_nodes",
+        "description": "Connect two nodes in the visual scripting graph.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "blueprint_name": {"type": "string"},
+                "source_node": {"type": "string"},
+                "source_pin": {"type": "string"},
+                "target_node": {"type": "string"},
+                "target_pin": {"type": "string"}
+            },
+            "required": ["blueprint_name", "source_node", "source_pin", "target_node", "target_pin"]
+        }
+    },
+    {
+        "name": "compile_blueprint",
+        "description": "Compile a Blueprint class to apply component and graph changes.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"}
+            },
+            "required": ["name"]
+        }
+    },
+    {
+        "name": "spawn_blueprint_actor",
+        "description": "Spawn an instance of a created Blueprint into the level.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "blueprint_name": {"type": "string"},
+                "name": {"type": "string"},
+                "location": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}}
+            },
+            "required": ["blueprint_name"]
+        }
+    },
 ]
 
 
