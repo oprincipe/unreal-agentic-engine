@@ -238,6 +238,18 @@ TOOLS = [
         },
     },
     {
+        "name": "set_actor_color",
+        "description": "Apply a base color to an actor's material in the scene. Useful for quickly painting geometries like cubes or walls without needing an explicit material asset.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "The exact name of the actor to color (e.g. 'StaticMeshActor1')"},
+                "color_hex": {"type": "string", "description": "The RGB hexadecimal color code to apply (e.g. '#FF0000' for red, '#00FF00' for green, '#FFFF00' for yellow)."}
+            },
+            "required": ["name", "color_hex"],
+        },
+    },
+    {
         "name": "start_play_in_editor",
         "description": "Start a Play-In-Editor (PIE) session.",
         "input_schema": {"type": "object", "properties": {}},

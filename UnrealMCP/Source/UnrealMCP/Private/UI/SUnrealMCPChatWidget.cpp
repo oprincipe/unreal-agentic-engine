@@ -251,7 +251,7 @@ void SUnrealMCPChatWidget::ShowLoadingIndicator()
         .BorderBackgroundColor(AssistantBubbleColor)
         [
             SNew(STextBlock)
-            .Text(FText::FromString(TEXT("Agent is thinking and processing scene... ⏳\n(This might take a while if indexing large levels)")))
+            .Text(FText::FromString(TEXT("Agent is thinking and processing scene...\n(This might take a while if indexing large levels)")))
             .ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f, 1.f))
         ]
     ];

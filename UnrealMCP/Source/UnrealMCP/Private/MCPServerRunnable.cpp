@@ -170,8 +170,15 @@ void FMCPServerRunnable::HandleClientConnection(TSharedPtr<FSocket> InClientSock
         }
         else if (!bReadSuccess)
         {
-            UE_LOG(LogTemp, Warning, TEXT("MCPServerRunnable: Connection closed or error occurred - Last error: %d"), 
-                   (int32)ISocketSubsystem::Get()->GetLastErrorCode());
+            const int32 LastError = (int32)ISocketSubsystem::Get()->GetLastErrorCode();
+            if (LastError == 0)
+            {
+                UE_LOG(LogTemp, Verbose, TEXT("MCPServerRunnable: Connection closed normally without error (LastError: 0)"));
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("MCPServerRunnable: Connection closed or error occurred - Last error: %d"), LastError);
+            }
             break;
         }
         

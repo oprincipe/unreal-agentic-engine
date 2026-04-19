@@ -22,6 +22,8 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "EditorAssetLibrary.h"
 #include "Commands/EpicUnrealMCPBlueprintCommands.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
 
 FEpicUnrealMCPEditorCommands::FEpicUnrealMCPEditorCommands()
 {
@@ -45,6 +47,10 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleCommand(const FStrin
     else if (CommandType == TEXT("delete_actor"))
     {
         return HandleDeleteActor(Params);
+    }
+    else if (CommandType == TEXT("set_actor_color"))
+    {
+        return HandleSetActorColor(Params);
     }
     else if (CommandType == TEXT("set_actor_transform"))
     {
@@ -246,6 +252,80 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleDeleteActor(const TS
         }
     }
     
+    return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Actor not found: %s"), *ActorName));
+}
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleSetActorColor(const TSharedPtr<FJsonObject>& Params)
+{
+    FString ActorName, ColorHex;
+    if (!Params->TryGetStringField(TEXT("name"), ActorName))
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'name' parameter"));
+    }
+    if (!Params->TryGetStringField(TEXT("color_hex"), ColorHex))
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'color_hex' parameter"));
+    }
+
+    // Convert hex string (e.g., "#FF0000" or "FF0000") to FColor
+    FColor Color = FColor::FromHex(ColorHex);
+    FLinearColor LinearColor = FLinearColor(Color);
+
+    TArray<AActor*> AllActors;
+    UGameplayStatics::GetAllActorsOfClass(GWorld, AActor::StaticClass(), AllActors);
+
+    for (AActor* Actor : AllActors)
+    {
+        if (Actor && (Actor->GetName() == ActorName || Actor->GetActorLabel() == ActorName))
+        {
+            // Find any MeshComponent (StaticMeshComponent etc)
+            TArray<UMeshComponent*> MeshComponents;
+            Actor->GetComponents<UMeshComponent>(MeshComponents);
+
+            if (MeshComponents.Num() == 0)
+            {
+                return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Actor does not have any mesh components to color"));
+            }
+
+            int32 PaintedCount = 0;
+            for (UMeshComponent* MeshComp : MeshComponents)
+            {
+                if (!MeshComp) continue;
+
+                // Color all materials on the mesh
+                const int32 NumMaterials = MeshComp->GetNumMaterials();
+                for (int32 MatIndex = 0; MatIndex < NumMaterials; ++MatIndex)
+                {
+                    UMaterialInterface* BaseMaterial = MeshComp->GetMaterial(MatIndex);
+                    if (!BaseMaterial) continue;
+
+                    // Create dynamic material instance
+                    UMaterialInstanceDynamic* DynamicMat = UMaterialInstanceDynamic::Create(BaseMaterial, MeshComp);
+                    if (DynamicMat)
+                    {
+                        // Some basic shape materials use "Color" or "BaseColor"
+                        DynamicMat->SetVectorParameterValue(TEXT("Color"), LinearColor);
+                        DynamicMat->SetVectorParameterValue(TEXT("BaseColor"), LinearColor);
+                        MeshComp->SetMaterial(MatIndex, DynamicMat);
+                        PaintedCount++;
+                    }
+                }
+            }
+
+            if (PaintedCount > 0)
+            {
+                TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+                ResultObj->SetStringField(TEXT("status"), TEXT("success"));
+                ResultObj->SetStringField(TEXT("message"), FString::Printf(TEXT("Applied color %s to %d materials on %s"), *ColorHex, PaintedCount, *ActorName));
+                return ResultObj;
+            }
+            else
+            {
+                return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("No compatible materials found to apply color"));
+            }
+        }
+    }
+
     return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Actor not found: %s"), *ActorName));
 }
 
