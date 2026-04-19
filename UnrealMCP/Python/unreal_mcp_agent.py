@@ -414,11 +414,10 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "blueprint_name": {"type": "string"},
-                "event_name": {"type": "string", "description": "E.g., 'TakeDamage', 'ActorBeginOverlap'"},
-                "pos_x": {"type": "number"},
-                "pos_y": {"type": "number"}
+                "event_type": {"type": "string", "description": "E.g., 'BeginOverlap', 'Tick', 'BeginPlay'"},
+                "node_position": {"type": "array", "items": {"type": "number"}, "description": "[x, y] coordinates"}
             },
-            "required": ["blueprint_name", "event_name"]
+            "required": ["blueprint_name", "event_type"]
         }
     },
     {
@@ -429,8 +428,8 @@ TOOLS = [
             "properties": {
                 "blueprint_name": {"type": "string"},
                 "function_name": {"type": "string"},
-                "pos_x": {"type": "number"},
-                "pos_y": {"type": "number"}
+                "function_class": {"type": "string", "description": "Optional class containing the function. Example: 'GameplayStatics' or 'AActor'"},
+                "node_position": {"type": "array", "items": {"type": "number"}, "description": "[x, y] coordinates"}
             },
             "required": ["blueprint_name", "function_name"]
         }
