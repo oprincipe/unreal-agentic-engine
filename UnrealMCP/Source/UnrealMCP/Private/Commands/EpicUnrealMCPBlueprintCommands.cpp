@@ -616,19 +616,23 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleSetMeshMaterialCo
         return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Component is not a primitive component"));
     }
 
-    TArray<float> ColorArray;
-    const TArray<TSharedPtr<FJsonValue>>* ColorJsonArray;
-    if (!Params->TryGetArrayField(TEXT("color"), ColorJsonArray) || ColorJsonArray->Num() != 4)
-    {
-        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("'color' must be an array of 4 float values [R, G, B, A]"));
-    }
+    FLinearColor Color(1.0f, 1.0f, 1.0f, 1.0f);
+    bool bHasColor = false;
 
-    for (const TSharedPtr<FJsonValue>& Value : *ColorJsonArray)
+    if (Params->HasField(TEXT("color_hex")))
     {
-        ColorArray.Add(FMath::Clamp(Value->AsNumber(), 0.0f, 1.0f));
+        FString HexStr = Params->GetStringField(TEXT("color_hex"));
+        Color = FLinearColor(FColor::FromHex(HexStr));
+        bHasColor = true;
     }
-
-    FLinearColor Color(ColorArray[0], ColorArray[1], ColorArray[2], ColorArray[3]);
+    else if (const TArray<TSharedPtr<FJsonValue>>* ColorJsonArray; Params->TryGetArrayField(TEXT("color"), ColorJsonArray) && ColorJsonArray->Num() == 4)
+    {
+        Color.R = FMath::Clamp((*ColorJsonArray)[0]->AsNumber(), 0.0, 1.0);
+        Color.G = FMath::Clamp((*ColorJsonArray)[1]->AsNumber(), 0.0, 1.0);
+        Color.B = FMath::Clamp((*ColorJsonArray)[2]->AsNumber(), 0.0, 1.0);
+        Color.A = FMath::Clamp((*ColorJsonArray)[3]->AsNumber(), 0.0, 1.0);
+        bHasColor = true;
+    }
 
     int32 MaterialSlot = 0;
     if (Params->HasField(TEXT("material_slot")))
@@ -662,14 +666,21 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleSetMeshMaterialCo
         }
     }
 
-    UMaterialInstanceDynamic* DynMaterial = UMaterialInstanceDynamic::Create(Material, PrimComponent);
-    if (!DynMaterial)
+    if (bHasColor)
     {
-        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to create dynamic material instance"));
-    }
+        UMaterialInstanceDynamic* DynMaterial = UMaterialInstanceDynamic::Create(Material, PrimComponent);
+        if (!DynMaterial)
+        {
+            return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to create dynamic material instance"));
+        }
 
-    DynMaterial->SetVectorParameterValue(*ParameterName, Color);
-    PrimComponent->SetMaterial(MaterialSlot, DynMaterial);
+        DynMaterial->SetVectorParameterValue(*ParameterName, Color);
+        PrimComponent->SetMaterial(MaterialSlot, DynMaterial);
+    }
+    else
+    {
+        PrimComponent->SetMaterial(MaterialSlot, Material);
+    }
 
     FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
 

@@ -371,6 +371,7 @@ TOOLS = [
                 "blueprint_name": {"type": "string"},
                 "component_name": {"type": "string"},
                 "mesh_path": {"type": "string", "description": "Optional path to the mesh (e.g. '/Engine/BasicShapes/Cylinder')"},
+                "material": {"type": "string", "description": "Optional path to the material to assign."},
                 "scale": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}},
                 "collision_setup": {"type": "string", "description": "E.g., 'OverlapAllDynamic', 'BlockAll'"}
             },
@@ -455,9 +456,9 @@ TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "name": {"type": "string"}
+                "blueprint_name": {"type": "string"}
             },
-            "required": ["name"]
+            "required": ["blueprint_name"]
         }
     },
     {
