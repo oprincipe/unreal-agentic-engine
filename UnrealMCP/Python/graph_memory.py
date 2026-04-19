@@ -1,305 +1,278 @@
-import os
+"""
+graph_memory.py  –  NetworkX-based Knowledge Graph memory for Unreal MCP Agent.
+
+Architecture:
+  INSERT: text → LLM extracts SPO triples → stored as nodes+edges in NetworkX DiGraph → persisted to .graphml
+  QUERY:  question → LLM extracts keywords → BFS on matching nodes → serialize only relevant subgraph triples
+          → LLM answers using the compact triple context (~20-80 tokens vs. hundreds for raw text)
+
+This approach is token-efficient because the context sent to the LLM during queries
+is structured triples, not full text blobs.
+"""
+
+from __future__ import annotations
 import json
 import logging
+import os
 import threading
-import asyncio
-import time
-import sys
 
-# --- MONKEYPATCH LIGHTRAG WORKER POOL ---
-# LightRAG 1.4.15 introduced a PriorityQueue WorkerPool that uses asyncio.wait_for
-# which causes "Timeout should be used inside a task" bugs on Python 3.14/Windows.
-# We bypass it entirely: pop all internal scheduler kwargs before forwarding to the real LLM.
-import lightrag.utils
-def _bypass_priority_limit_async_func_call(*args, **kwargs):
-    def decorator(func):
-        async def wrapper(*func_args, **func_kwargs):
-            func_kwargs.pop("_priority", None)
-            func_kwargs.pop("_timeout", None)
-            func_kwargs.pop("_queue_timeout", None)
-            return await func(*func_args, **func_kwargs)
-        return wrapper
-    return decorator
-lightrag.utils.priority_limit_async_func_call = _bypass_priority_limit_async_func_call
-# ----------------------------------------
+import networkx as nx
 
 log = logging.getLogger(__name__)
 
-# Global instances
-_lightrag_instance = None
-_current_provider = None
-_current_model = None
+_graph: nx.DiGraph | None = None
+_graph_lock = threading.Lock()
 
 
-def _get_working_dir() -> str:
+# ── Storage path ───────────────────────────────────────────────────────────────
+
+def _get_graph_path() -> str:
     try:
         from unreal_mcp_agent import _db_path
-        if _db_path:
-            base = os.path.dirname(_db_path)
-        else:
-            raise ImportError
+        base = os.path.dirname(_db_path) if _db_path else None
     except Exception:
+        base = None
+    if not base:
         base = os.path.join(os.path.dirname(__file__), "..", "Saved", "UnrealMCP")
-    wd = os.path.join(base, "GraphStorage")
-    os.makedirs(wd, exist_ok=True)
-    return wd
+    os.makedirs(base, exist_ok=True)
+    return os.path.join(base, "knowledge_graph.graphml")
 
 
-# ---------------------------------------------------------------------------
-# Lightweight local embedding using a pre-downloaded sentence-transformers
-# model.  Falls back to a zero-vector stub only if the package is missing.
-# ---------------------------------------------------------------------------
-_embed_model = None
+# ── Graph load / save ──────────────────────────────────────────────────────────
 
-def _get_embed_model():
-    global _embed_model
-    if _embed_model is not None:
-        return _embed_model
+def _load_graph() -> nx.DiGraph:
+    global _graph
+    if _graph is not None:
+        return _graph
+    with _graph_lock:
+        if _graph is not None:
+            return _graph
+        path = _get_graph_path()
+        if os.path.exists(path):
+            try:
+                _graph = nx.read_graphml(path)
+                log.info(f"Loaded knowledge graph: {_graph.number_of_nodes()} nodes, {_graph.number_of_edges()} edges")
+                return _graph
+            except Exception as e:
+                log.warning(f"Could not load graph ({e}), starting fresh.")
+        _graph = nx.DiGraph()
+        return _graph
+
+
+def _save_graph():
+    path = _get_graph_path()
     try:
-        from sentence_transformers import SentenceTransformer
-        _embed_model = SentenceTransformer("all-MiniLM-L6-v2")
-        log.info("Loaded local sentence-transformers embedding model (all-MiniLM-L6-v2).")
+        nx.write_graphml(_graph, path)
     except Exception as e:
-        log.warning(f"sentence_transformers unavailable ({e}). Using stub embeddings.")
-        _embed_model = None
-    return _embed_model
+        log.error(f"Could not save graph: {e}")
 
 
-async def _local_embedding_func(texts: list[str]) -> "np.ndarray":
-    import numpy as np
-    model = _get_embed_model()
-    if model is None:
-        # Stub: zero vectors — storage will work but search quality is zero
-        return np.zeros((len(texts), 384), dtype=np.float32)
-    embeddings = model.encode(texts, normalize_embeddings=True)
-    return np.array(embeddings, dtype=np.float32)
+# ── LLM helpers ────────────────────────────────────────────────────────────────
+
+def _call_llm(provider: str, api_key: str, model: str, prompt: str) -> str:
+    """Make a raw LLM call. Returns the text response."""
+    prov = provider.lower()
+    try:
+        if prov == "anthropic":
+            import anthropic
+            client = anthropic.Anthropic(api_key=api_key)
+            msg = client.messages.create(
+                model=model,
+                max_tokens=1024,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return msg.content[0].text.strip()
+
+        elif prov == "openai":
+            import openai
+            client = openai.OpenAI(api_key=api_key)
+            resp = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=1024,
+            )
+            return resp.choices[0].message.content.strip()
+
+        elif prov == "google":
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            m = genai.GenerativeModel(model)
+            return m.generate_content(prompt).text.strip()
+
+        else:
+            raise ValueError(f"Unsupported provider: {provider}")
+    except Exception as e:
+        log.error(f"LLM call failed ({provider}): {e}")
+        raise
 
 
-# ---------------------------------------------------------------------------
-# LLM wrappers — one per supported provider.
-# The critical part: LightRAG calls llm_model_func with keyword_extraction=True
-# when it wants structured JSON for entity/relation extraction.
-# We detect this via `response_format` in kwargs and route accordingly,
-# keeping everything within the same provider (no silent cross-provider calls).
-# ---------------------------------------------------------------------------
-
-def _make_anthropic_llm_func(model: str, api_key: str):
-    """Return an async func compatible with LightRAG's llm_model_func contract."""
-    from lightrag.llm.anthropic import anthropic_complete_if_cache
-
-    async def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
-        if history_messages is None:
-            history_messages = []
-
-        # Strip LightRAG-internal kwargs that LLM APIs don't understand
-        kwargs.pop("response_format", None)
-        kwargs.pop("keyword_extraction", None)
-        kwargs.setdefault("max_tokens", 8192)
-
-        return await anthropic_complete_if_cache(
-            model, prompt,
-            system_prompt=system_prompt,
-            history_messages=history_messages,
-            api_key=api_key,
-            **kwargs
-        )
-    return llm_model_func
+def _extract_triples(provider: str, api_key: str, model: str, text: str) -> list[tuple[str, str, str]]:
+    """Ask the LLM to extract Subject-Predicate-Object triples from text as JSON."""
+    prompt = (
+        "Extract all factual Subject-Predicate-Object triples from the text below.\n"
+        "Return ONLY a JSON array of objects, each with keys 'subject', 'predicate', 'object'.\n"
+        "Use short, lowercase, underscore-separated values (e.g. 'blood_arena', 'is_a', 'deathmatch_map').\n"
+        "If the text contains no facts, return an empty array [].\n\n"
+        f"Text: \"{text}\"\n\n"
+        "JSON:"
+    )
+    raw = _call_llm(provider, api_key, model, prompt)
+    # Strip markdown code fences if present
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    try:
+        data = json.loads(raw)
+        triples = [(d["subject"], d["predicate"], d["object"]) for d in data if "subject" in d]
+        return triples
+    except Exception as e:
+        log.warning(f"Triple extraction parse error ({e}), raw: {raw[:200]}")
+        return []
 
 
-def _make_openai_llm_func(model: str, api_key: str):
-    from lightrag.llm.openai import openai_complete_if_cache
-
-    async def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
-        if history_messages is None:
-            history_messages = []
-        kwargs.pop("keyword_extraction", None)
-        kwargs.setdefault("max_tokens", 8192)
-        return await openai_complete_if_cache(
-            model, prompt,
-            system_prompt=system_prompt,
-            history_messages=history_messages,
-            api_key=api_key,
-            **kwargs
-        )
-    return llm_model_func
-
-
-def _make_google_llm_func(model: str, api_key: str):
-    from lightrag.llm.google import gemini_complete_if_cache
-
-    async def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
-        if history_messages is None:
-            history_messages = []
-        kwargs.pop("response_format", None)
-        kwargs.pop("keyword_extraction", None)
-        kwargs.setdefault("max_tokens", 8192)
-        return await gemini_complete_if_cache(
-            model, prompt,
-            system_prompt=system_prompt,
-            history_messages=history_messages,
-            api_key=api_key,
-            **kwargs
-        )
-    return llm_model_func
+def _extract_keywords(provider: str, api_key: str, model: str, question: str) -> list[str]:
+    """Ask the LLM to extract search keywords from a question."""
+    prompt = (
+        "Extract the key entity names and concepts from this question.\n"
+        "Return ONLY a JSON array of lowercase strings (e.g. [\"blood_arena\", \"arena\", \"name\"]).\n\n"
+        f"Question: \"{question}\"\n\nJSON:"
+    )
+    raw = _call_llm(provider, api_key, model, prompt)
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    try:
+        return [k.lower() for k in json.loads(raw) if isinstance(k, str)]
+    except Exception:
+        # Fallback: split words from the question
+        return [w.lower().strip("?.,!") for w in question.split() if len(w) > 3]
 
 
-def _make_ollama_llm_func(model: str, api_key: str):
-    from lightrag.llm.ollama import ollama_model_if_cache
+# ── Graph retrieval ────────────────────────────────────────────────────────────
 
-    async def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
-        if history_messages is None:
-            history_messages = []
-        kwargs.pop("response_format", None)
-        kwargs.pop("keyword_extraction", None)
-        kwargs.setdefault("max_tokens", 8192)
-        return await ollama_model_if_cache(
-            model, prompt,
-            system_prompt=system_prompt,
-            history_messages=history_messages,
-            **kwargs
-        )
-    return llm_model_func
+def _find_relevant_triples(graph: nx.DiGraph, keywords: list[str], depth: int = 2) -> list[tuple[str, str, str]]:
+    """
+    Find nodes matching any keyword (substring match), then BFS up to `depth`
+    hops to collect the connected subgraph as SPO triples.
+    Returns a deduplicated list of (subject, predicate, object) strings.
+    """
+    seed_nodes = set()
+    for node in graph.nodes():
+        node_str = str(node).lower()
+        if any(kw in node_str for kw in keywords):
+            seed_nodes.add(node)
+
+    visited_nodes = set()
+    queue = list(seed_nodes)
+    for _ in range(depth):
+        next_queue = []
+        for n in queue:
+            if n in visited_nodes:
+                continue
+            visited_nodes.add(n)
+            next_queue.extend(graph.successors(n))
+            next_queue.extend(graph.predecessors(n))
+        queue = next_queue
+    visited_nodes.update(queue)
+
+    triples = []
+    seen = set()
+    for u, v, data in graph.edges(data=True):
+        if u in visited_nodes or v in visited_nodes:
+            pred = data.get("predicate", "related_to")
+            key = (u, pred, v)
+            if key not in seen:
+                seen.add(key)
+                triples.append(key)
+    return triples
 
 
-# ---------------------------------------------------------------------------
+def _triples_to_context(triples: list[tuple[str, str, str]]) -> str:
+    """Serialize triples as compact bullet points for use in LLM context."""
+    return "\n".join(f"  • ({s}) --[{p}]--> ({o})" for s, p, o in triples)
 
-def get_lightrag(provider: str, api_key: str, model: str):
-    global _lightrag_instance, _current_provider, _current_model
-    from lightrag import LightRAG
-    from lightrag.utils import EmbeddingFunc
 
-    # Reuse existing instance when nothing has changed
-    if (_lightrag_instance is not None
-            and provider == _current_provider
-            and model == _current_model):
-        return _lightrag_instance
+# ── Public API ─────────────────────────────────────────────────────────────────
 
-    wd = _get_working_dir()
-    log.info(f"Initializing LightRAG in {wd} | provider={provider}, model={model}")
+def insert_knowledge(provider: str, api_key: str, model: str, text: str) -> str:
+    """
+    Extract SPO triples from `text` using the LLM, add them to the knowledge
+    graph, and persist to disk.
+    """
+    graph = _load_graph()
 
-    prov_lower = provider.lower()
+    try:
+        triples = _extract_triples(provider, api_key, model, text)
+    except Exception as e:
+        return f"Error extracting triples: {e}"
 
-    # Set env-vars expected by LightRAG internals
-    if prov_lower == "openai":
-        os.environ["OPENAI_API_KEY"] = api_key
-        llm_func = _make_openai_llm_func(model, api_key)
-    elif prov_lower == "anthropic":
-        os.environ["ANTHROPIC_API_KEY"] = api_key
-        llm_func = _make_anthropic_llm_func(model, api_key)
-    elif prov_lower == "google":
-        os.environ["GEMINI_API_KEY"] = api_key
-        llm_func = _make_google_llm_func(model, api_key)
-    elif prov_lower == "ollama":
-        llm_func = _make_ollama_llm_func(model, api_key)
-    else:
-        os.environ["OPENAI_API_KEY"] = api_key
-        llm_func = _make_openai_llm_func(model, api_key)
+    if not triples:
+        return "Warning: No facts could be extracted from the provided text."
 
-    embedding_func = EmbeddingFunc(
-        embedding_dim=384,
-        max_token_size=512,
-        func=_local_embedding_func,
+    with _graph_lock:
+        for subject, predicate, obj in triples:
+            if subject not in graph:
+                graph.add_node(subject)
+            if obj not in graph:
+                graph.add_node(obj)
+            graph.add_edge(subject, obj, predicate=predicate)
+        _save_graph()
+
+    summary = "; ".join(f"({s})▶[{p}]▶({o})" for s, p, o in triples)
+    log.info(f"Memory: inserted {len(triples)} triple(s): {summary}")
+    return f"Remembered {len(triples)} fact(s): {summary}"
+
+
+def query_knowledge(provider: str, api_key: str, model: str,
+                    question: str, mode: str = "hybrid") -> str:
+    """
+    Query the knowledge graph. Retrieves relevant triples via keyword BFS,
+    then synthesises an answer using the LLM with only the compact triple context.
+    """
+    graph = _load_graph()
+
+    if graph.number_of_nodes() == 0:
+        return "No information stored in memory yet."
+
+    # Step 1: extract search keywords
+    try:
+        keywords = _extract_keywords(provider, api_key, model, question)
+    except Exception:
+        # Fallback to simple word splitting
+        keywords = [w.lower().strip("?.,!") for w in question.split() if len(w) > 3]
+
+    log.info(f"Memory query keywords: {keywords}")
+
+    # Step 2: BFS on graph
+    triples = _find_relevant_triples(graph, keywords, depth=2)
+
+    if not triples:
+        # Fallback: return all triples if graph is small enough
+        all_triples = [(u, d.get("predicate", "related_to"), v)
+                       for u, v, d in graph.edges(data=True)]
+        if len(all_triples) <= 30:
+            triples = all_triples
+        else:
+            return "No relevant information found in memory for this question."
+
+    # Step 3: synthesise answer with compact triple context
+    context = _triples_to_context(triples)
+    prompt = (
+        "You have access to the following knowledge graph facts (in Subject→Predicate→Object format):\n"
+        f"{context}\n\n"
+        "Using ONLY the facts above, answer this question concisely.\n"
+        "If the answer cannot be derived from the facts, say so.\n\n"
+        f"Question: {question}"
     )
 
     try:
-        _lightrag_instance = LightRAG(
-            working_dir=wd,
-            llm_model_func=llm_func,
-            llm_model_name=model,
-            embedding_func=embedding_func,
-        )
-        run_async(_lightrag_instance.initialize_storages())
-        _current_provider = provider
-        _current_model = model
-        log.info("LightRAG initialized successfully.")
+        answer = _call_llm(provider, api_key, model, prompt)
+        log.info(f"Memory query answered ({len(triples)} triples used, context ~{len(context)} chars)")
+        return answer
     except Exception as e:
-        log.error(f"Failed to initialize LightRAG: {e}")
-        _lightrag_instance = None
-
-    return _lightrag_instance
-
-
-# ---------------------------------------------------------------------------
-# Background asyncio loop — isolated from Unreal's main thread
-# ---------------------------------------------------------------------------
-_bg_loop = None
-_bg_thread = None
-
-
-def _start_bg_loop():
-    global _bg_loop
-
-    async def run_forever():
-        global _bg_loop
-        _bg_loop = asyncio.get_running_loop()
-        # Ensure AnyIO/sniffio recognises this loop
-        try:
-            import sniffio
-            sniffio.current_async_library_cvar.set("asyncio")
-        except Exception:
-            pass
-        while True:
-            await asyncio.sleep(3600)
-
-    # Windows: force SelectorEventLoop to avoid ProactorEventLoop IOCP bugs
-    # that manifest as "cannot create weak reference to NoneType" under httpx
-    if sys.platform == "win32":
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
-    asyncio.run(run_forever())
-
-
-def _ensure_bg_loop():
-    global _bg_loop, _bg_thread
-    if _bg_loop is None or not _bg_loop.is_running():
-        _bg_thread = threading.Thread(target=_start_bg_loop, daemon=True, name="LightRAG-BG")
-        _bg_thread.start()
-        while _bg_loop is None or not _bg_loop.is_running():
-            time.sleep(0.01)
-
-
-def run_async(coro):
-    """Run a coroutine inside the dedicated background event loop."""
-    _ensure_bg_loop()
-
-    async def _wrap():
-        # Re-inject sniffio context for every task boundary
-        try:
-            import sniffio
-            sniffio.current_async_library_cvar.set("asyncio")
-        except Exception:
-            pass
-        return await coro
-
-    future = asyncio.run_coroutine_threadsafe(_wrap(), _bg_loop)
-    return future.result()
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
-def insert_knowledge(provider: str, api_key: str, model: str, text: str) -> str:
-    """Insert a fact into the persistent knowledge graph."""
-    rag = get_lightrag(provider, api_key, model)
-    if not rag:
-        return "Error: Could not initialize RAG engine."
-    try:
-        run_async(rag.ainsert(text))
-        return "Knowledge successfully encoded into Semantic Graph."
-    except Exception as e:
-        log.error(f"LightRAG insert error: {e}")
-        return f"Warning: Failed to encode knowledge. {e}"
-
-
-def query_knowledge(provider: str, api_key: str, model: str, question: str, mode: str = "hybrid") -> str:
-    """Query the persistent knowledge graph."""
-    rag = get_lightrag(provider, api_key, model)
-    if not rag:
-        return "Error: Could not initialize RAG engine."
-    try:
-        from lightrag import QueryParam
-        return run_async(rag.aquery(question, param=QueryParam(mode=mode)))
-    except Exception as e:
-        log.error(f"LightRAG query error: {e}")
-        return f"Warning: Failed to query knowledge. {e}"
+        # Still return raw triples as fallback
+        return f"Graph facts (LLM synthesis failed: {e}):\n{context}"
