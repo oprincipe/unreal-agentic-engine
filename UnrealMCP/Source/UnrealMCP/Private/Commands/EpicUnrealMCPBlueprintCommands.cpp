@@ -568,7 +568,26 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleSetStaticMeshProp
         }
     }
 
-    FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+    if (Params->HasField(TEXT("location")))
+    {
+        MeshComponent->SetRelativeLocation(FEpicUnrealMCPCommonUtils::GetVectorFromJson(Params, TEXT("location")));
+    }
+    if (Params->HasField(TEXT("rotation")))
+    {
+        MeshComponent->SetRelativeRotation(FEpicUnrealMCPCommonUtils::GetRotatorFromJson(Params, TEXT("rotation")));
+    }
+    if (Params->HasField(TEXT("scale")))
+    {
+        MeshComponent->SetRelativeScale3D(FEpicUnrealMCPCommonUtils::GetVectorFromJson(Params, TEXT("scale")));
+    }
+
+    if (Params->HasField(TEXT("collision_setup")))
+    {
+        FName ProfileName(*Params->GetStringField(TEXT("collision_setup")));
+        MeshComponent->SetCollisionProfileName(ProfileName);
+    }
+
+    FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 
     TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
     ResultObj->SetStringField(TEXT("component"), ComponentName);
