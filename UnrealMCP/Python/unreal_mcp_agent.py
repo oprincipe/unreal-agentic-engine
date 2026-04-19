@@ -628,6 +628,8 @@ class AgentHandler(BaseHTTPRequestHandler):
                 self.send_json(400, {"error": "Missing 'message'"})
                 return
 
+            log.info(f"\n====== USER PROMPT ======\n{message}\n=========================")
+
             # Save user message
             save_message(_db_path, session_id, "user", message)
 
@@ -639,6 +641,8 @@ class AgentHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 log.exception("Agent error")
                 reply = f"Agent error: {e}"
+
+            log.info(f"\n====== AI RESPONSE ======\n{reply}\n=========================")
 
             # Save assistant reply
             save_message(_db_path, session_id, "assistant", reply)
