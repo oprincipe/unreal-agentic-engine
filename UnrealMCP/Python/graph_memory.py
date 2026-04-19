@@ -3,7 +3,6 @@ import logging
 import threading
 import asyncio
 import time
-import nest_asyncio
 
 # --- MONKEYPATCH LIGHTRAG WORKER POOL ---
 # LightRAG 1.4.15 introduced a PriorityQueue WorkerPool that heavily relies on asyncio.wait_for
@@ -21,9 +20,6 @@ def _bypass_priority_limit_async_func_call(*args, **kwargs):
     return decorator
 lightrag.utils.priority_limit_async_func_call = _bypass_priority_limit_async_func_call
 # ----------------------------------------
-
-# Apply nest_asyncio to allow asyncio.run() within threaded environments if needed
-nest_asyncio.apply()
 
 log = logging.getLogger(__name__)
 
