@@ -983,9 +983,31 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleAddBlueprintFunct
 
     if (!FunctionClass.IsEmpty())
     {
-        if (const UClass* TargetClass = FindObject<UClass>(nullptr, *FunctionClass))
+        UClass* TargetClass = nullptr;
+        FString SearchName = FunctionClass;
+        if (SearchName.StartsWith(TEXT("U")) || SearchName.StartsWith(TEXT("A")))
+        {
+            SearchName = SearchName.Mid(1);
+        }
+
+        for (TObjectIterator<UClass> It; It; ++It)
+        {
+            if (It->GetName() == SearchName)
+            {
+                TargetClass = *It;
+                break;
+            }
+        }
+
+        if (TargetClass)
         {
             Function = TargetClass->FindFunctionByName(*FunctionName);
+            
+            // Fallback for function names without 'K2_' prefix if not found
+            if (!Function && !FunctionName.StartsWith(TEXT("K2_")))
+            {
+                Function = TargetClass->FindFunctionByName(*(TEXT("K2_") + FunctionName));
+            }
         }
     }
     else
@@ -993,6 +1015,11 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleAddBlueprintFunct
         if (Blueprint->ParentClass)
         {
             Function = Blueprint->ParentClass->FindFunctionByName(*FunctionName);
+            
+            if (!Function && !FunctionName.StartsWith(TEXT("K2_")))
+            {
+                Function = Blueprint->ParentClass->FindFunctionByName(*(TEXT("K2_") + FunctionName));
+            }
         }
     }
 
