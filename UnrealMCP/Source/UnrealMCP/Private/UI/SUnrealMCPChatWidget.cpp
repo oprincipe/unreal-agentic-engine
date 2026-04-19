@@ -104,7 +104,6 @@ void SUnrealMCPChatWidget::Construct(const FArguments& InArgs)
                     [
                         SNew(SBox)
                         .MinDesiredHeight(40.f)
-                        .MaxDesiredHeight(150.f)
                         [
                             SAssignNew(InputTextBox, SMultiLineEditableTextBox)
                             .HintText(LOCTEXT("InputHint", "Ask anything about your Unreal scene... (Shift+Enter for new line)"))
