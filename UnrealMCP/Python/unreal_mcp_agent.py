@@ -474,6 +474,18 @@ TOOLS = [
             "required": ["blueprint_name", "actor_name"]
         }
     },
+    {
+        "name": "search_blueprint_nodes",
+        "description": "Dynamically search for available Unreal Engine Blueprint nodes (Functions/Events) and return their exact signature (pins, class). Use this when you are unsure of a function's exact name or inputs.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "search_term": {"type": "string", "description": "Keyword to search for ('destroy', 'overlap', 'spawn')"},
+                "target_class": {"type": "string", "description": "Optional: Narrow search to a specific class (e.g. 'Actor', 'GameplayStatics')"}
+            },
+            "required": ["search_term"]
+        }
+    },
 ]
 
 

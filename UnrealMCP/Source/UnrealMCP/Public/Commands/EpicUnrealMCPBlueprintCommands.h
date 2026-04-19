@@ -52,5 +52,6 @@ private:
     TSharedPtr<FJsonObject> HandleConnectBlueprintNodes(const TSharedPtr<FJsonObject>& Params);
     TSharedPtr<FJsonObject> HandleAddBlueprintBranchNode(const TSharedPtr<FJsonObject>& Params);
     TSharedPtr<FJsonObject> HandleCreateBlueprintCustomEvent(const TSharedPtr<FJsonObject>& Params);
+    TSharedPtr<FJsonObject> HandleSearchBlueprintNodes(const TSharedPtr<FJsonObject>& Params);
 
 }; 

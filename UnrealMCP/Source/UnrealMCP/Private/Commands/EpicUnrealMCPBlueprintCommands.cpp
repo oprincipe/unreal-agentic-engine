@@ -102,6 +102,10 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleCommand(const FSt
     {
         return HandleCreateBlueprintCustomEvent(Params);
     }
+    else if (CommandType == TEXT("search_blueprint_nodes"))
+    {
+        return HandleSearchBlueprintNodes(Params);
+    }
     else if (CommandType == TEXT("read_blueprint_enum"))
     {
         return HandleReadBlueprintEnum(Params);
@@ -2133,5 +2137,137 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleDuplicateAsset(co
     TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
     ResultObj->SetStringField(TEXT("asset_path"), Duplicated->GetPathName());
     ResultObj->SetBoolField(TEXT("success"), true);
+}
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleSearchBlueprintNodes(const TSharedPtr<FJsonObject>& Params)
+{
+    FString SearchTerm;
+    if (!Params->TryGetStringField(TEXT("search_term"), SearchTerm))
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'search_term' parameter"));
+    }
+
+    FString TargetClassStr;
+    Params->TryGetStringField(TEXT("target_class"), TargetClassStr);
+
+    UClass* TargetClass = nullptr;
+    if (!TargetClassStr.IsEmpty())
+    {
+        FString SearchName = TargetClassStr;
+        if (SearchName.StartsWith(TEXT("U")) || SearchName.StartsWith(TEXT("A")))
+        {
+            SearchName = SearchName.Mid(1);
+        }
+
+        for (TObjectIterator<UClass> It; It; ++It)
+        {
+            if (It->GetName() == SearchName)
+            {
+                TargetClass = *It;
+                break;
+            }
+        }
+
+        if (!TargetClass)
+        {
+            return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Target class not found: %s"), *TargetClassStr));
+        }
+    }
+
+    TArray<TSharedPtr<FJsonValue>> MatchesArray;
+    int32 MatchCount = 0;
+    const int32 MaxMatches = 30;
+
+    auto ProcessFunction = [&](UFunction* Function)
+    {
+        if (MatchCount >= MaxMatches) return;
+
+        if (!Function->HasAnyFunctionFlags(FUNC_BlueprintCallable | FUNC_BlueprintPure | FUNC_BlueprintEvent))
+        {
+            return;
+        }
+
+        FString FuncName = Function->GetName();
+        if (!FuncName.Contains(SearchTerm, ESearchCase::IgnoreCase))
+        {
+            return;
+        }
+
+        TSharedPtr<FJsonObject> FuncObj = MakeShared<FJsonObject>();
+        FuncObj->SetStringField(TEXT("function_name"), FuncName);
+        
+        if (UClass* OuterClass = Function->GetOwnerClass())
+        {
+            FuncObj->SetStringField(TEXT("class_name"), OuterClass->GetName());
+        }
+
+        TArray<TSharedPtr<FJsonValue>> InputsArray;
+        TArray<TSharedPtr<FJsonValue>> OutputsArray;
+
+        for (TFieldIterator<FProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+        {
+            FProperty* Param = *PropIt;
+            FString ParamName = Param->GetName();
+            FString ParamType = Param->GetCPPType();
+
+            if (Param->IsA<FObjectProperty>())
+            {
+                FObjectProperty* ObjProp = CastField<FObjectProperty>(Param);
+                if (ObjProp && ObjProp->PropertyClass)
+                {
+                    ParamType = ObjProp->PropertyClass->GetName();
+                }
+            }
+
+            TSharedPtr<FJsonObject> PinObj = MakeShared<FJsonObject>();
+            PinObj->SetStringField(TEXT("name"), ParamName);
+            PinObj->SetStringField(TEXT("type"), ParamType);
+
+            bool bIsOutput = Param->HasAnyPropertyFlags(CPF_ReturnParm) || (Param->HasAnyPropertyFlags(CPF_OutParm) && !Param->HasAnyPropertyFlags(CPF_ConstParm));
+            
+            if (bIsOutput)
+            {
+                OutputsArray.Add(MakeShared<FJsonValueObject>(PinObj));
+            }
+            else
+            {
+                InputsArray.Add(MakeShared<FJsonValueObject>(PinObj));
+            }
+        }
+
+        FuncObj->SetArrayField(TEXT("input_pins"), InputsArray);
+        FuncObj->SetArrayField(TEXT("output_pins"), OutputsArray);
+
+        MatchesArray.Add(MakeShared<FJsonValueObject>(FuncObj));
+        MatchCount++;
+    };
+
+    if (TargetClass)
+    {
+        for (TFieldIterator<UFunction> FunIt(TargetClass, EFieldIteratorFlags::IncludeSuper); FunIt; ++FunIt)
+        {
+            ProcessFunction(*FunIt);
+            if (MatchCount >= MaxMatches) break;
+        }
+    }
+    else
+    {
+        for (TObjectIterator<UFunction> It; It; ++It)
+        {
+            ProcessFunction(*It);
+            if (MatchCount >= MaxMatches) break;
+        }
+    }
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetArrayField(TEXT("matches"), MatchesArray);
+    ResultObj->SetNumberField(TEXT("count"), MatchesArray.Num());
+    ResultObj->SetBoolField(TEXT("success"), true);
+    
+    if (MatchCount >= MaxMatches)
+    {
+        ResultObj->SetStringField(TEXT("warning"), TEXT("Search results were truncated to 30 matches. Please use target_class or a more specific search_term to narrow your results."));
+    }
+
     return ResultObj;
 }
