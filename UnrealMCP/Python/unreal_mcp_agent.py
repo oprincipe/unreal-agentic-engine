@@ -224,6 +224,17 @@ TOOLS = [
         },
     },
     {
+        "name": "delete_actor",
+        "description": "Delete or destroy an actor from the Unreal Engine level.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "The exact name of the actor to delete (e.g. 'StaticMeshActor1')"}
+            },
+            "required": ["name"],
+        },
+    },
+    {
         "name": "start_play_in_editor",
         "description": "Start a Play-In-Editor (PIE) session.",
         "input_schema": {"type": "object", "properties": {}},
