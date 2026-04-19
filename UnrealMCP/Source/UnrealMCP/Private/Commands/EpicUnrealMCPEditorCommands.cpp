@@ -299,14 +299,26 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleSetActorColor(const 
                     UMaterialInterface* BaseMaterial = MeshComp->GetMaterial(MatIndex);
                     if (!BaseMaterial) continue;
 
-                    // Create dynamic material instance
-                    UMaterialInstanceDynamic* DynamicMat = UMaterialInstanceDynamic::Create(BaseMaterial, MeshComp);
+                    UMaterialInstanceDynamic* DynamicMat = Cast<UMaterialInstanceDynamic>(BaseMaterial);
+                    bool bWasCreated = false;
+                    
+                    if (!DynamicMat)
+                    {
+                        // Create dynamic material instance
+                        DynamicMat = UMaterialInstanceDynamic::Create(BaseMaterial, MeshComp);
+                        bWasCreated = true;
+                    }
+                    
                     if (DynamicMat)
                     {
                         // Some basic shape materials use "Color" or "BaseColor"
                         DynamicMat->SetVectorParameterValue(TEXT("Color"), LinearColor);
                         DynamicMat->SetVectorParameterValue(TEXT("BaseColor"), LinearColor);
-                        MeshComp->SetMaterial(MatIndex, DynamicMat);
+                        
+                        if (bWasCreated)
+                        {
+                            MeshComp->SetMaterial(MatIndex, DynamicMat);
+                        }
                         PaintedCount++;
                     }
                 }
