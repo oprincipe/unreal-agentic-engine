@@ -438,7 +438,26 @@ def agent_ollama(messages: List[Dict], api_key: str, model: str) -> str:
 
         calls = msg.get("tool_calls", [])
         if not calls:
-            return msg.get("content", "")
+            content = msg.get("content", "").strip()
+            # Fallback for models that output raw JSON instead of using the API correctly
+            if content.startswith("{") and content.endswith("}"):
+                try:
+                    parsed = json.loads(content)
+                    if "name" in parsed and ("arguments" in parsed or "parameters" in parsed):
+                        fn_name = parsed["name"]
+                        fn_args = parsed.get("arguments", parsed.get("parameters", {}))
+                        if isinstance(fn_args, str):
+                            try:
+                                fn_args = json.loads(fn_args)
+                            except:
+                                fn_args = {}
+                        log.info(f"Fallback parsing tool call from content: {fn_name} with {fn_args}")
+                        result_str = _run_tool(fn_name, fn_args)
+                        history.append({"role": "tool", "content": result_str})
+                        continue
+                except Exception:
+                    pass
+            return content
 
         for tc in calls:
             fn = tc["function"]

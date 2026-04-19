@@ -246,9 +246,10 @@ TSharedRef<SWidget> SUnrealMCPChatWidget::BuildChatBubble(const FChatMessage& Me
         .Padding(FMargin(10.f, 6.f))
         .BorderBackgroundColor(Message.Role == TEXT("user") ? UserBubbleColor : AssistantBubbleColor)
         [
-            SNew(STextBlock)
+            SNew(SMultiLineEditableText)
             .Text(FText::FromString(Message.Content))
             .AutoWrapText(true)
+            .IsReadOnly(true)
         ];
 }
 
@@ -273,10 +274,10 @@ void SUnrealMCPChatWidget::AddMessageToUI(const FChatMessage& Message)
             .Padding(FMargin(10.f, 6.f))
             .BorderBackgroundColor(BubbleColor)
             [
-                SNew(STextBlock)
+                SNew(SMultiLineEditableText)
                 .Text(FText::FromString(Message.Content))
                 .AutoWrapText(true)
-                .ColorAndOpacity(FLinearColor(0.9f, 0.9f, 0.9f, 1.f))
+                .IsReadOnly(true)
             ]
         ]
     ];
