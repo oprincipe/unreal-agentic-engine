@@ -52,64 +52,35 @@ def get_lightrag(provider: str, api_key: str, model: str):
         if not llm_model_name.startswith("gemini"):
             llm_model_name = f"gemini/{model}"
 
-    async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
-        from litellm import completion
-        import asyncio
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        if history_messages:
-            messages.extend(history_messages)
-        messages.append({"role": "user", "content": prompt})
-        
-        merged_kwargs = {**kwargs}
-        if prov_lower == "ollama":
-            resp = await asyncio.to_thread(
-                completion,
-                model=f"ollama/{model}",
-                messages=messages,
-                api_base=api_key if api_key.startswith("http") else "http://localhost:11434",
-                **merged_kwargs
-            )
-        else:
-            resp = await asyncio.to_thread(
-                completion,
-                model=llm_model_name,
-                messages=messages,
-                **merged_kwargs
-            )
-        return resp.choices[0].message.content
-
     from lightrag.utils import wrap_embedding_func_with_attrs
+    
+    if prov_lower == "openai":
+        from lightrag.llm.openai import openai_complete_if_cache, openai_embed
+        llm_model_func = openai_complete_if_cache
+        embedding_func = openai_embed
 
-    emb_dim = 1536
-    if prov_lower == "ollama" or prov_lower == "google":
-        emb_dim = 768
+    elif prov_lower == "anthropic":
+        from lightrag.llm.anthropic import anthropic_complete_if_cache
+        from lightrag.llm.openai import openai_embed
+        llm_model_func = anthropic_complete_if_cache
+        # Anthropic doesn't have native embeddings, fallback to OpenAI
+        embedding_func = openai_embed
+        log.info("Anthropic provider selected: Using OpenAI for embeddings. Ensure OPENAI_API_KEY is set.")
 
-    @wrap_embedding_func_with_attrs(embedding_dim=emb_dim, max_token_size=8192)
-    async def embedding_func(texts, **kwargs):
-        from litellm import embedding
-        import asyncio
-        if prov_lower == "openai":
-            emb_model = "text-embedding-3-small"
-        elif prov_lower == "ollama":
-            emb_model = "ollama/nomic-embed-text"
-            kwargs["api_base"] = api_key if api_key.startswith("http") else "http://localhost:11434"
-        elif prov_lower == "google":
-            emb_model = "text-embedding-004"
-        else:
-            emb_model = "text-embedding-3-small"
-            
-        try:
-            # We use asyncio.to_thread to run the synchronous version.
-            # This avoids aiohttp 'Timeout should be used inside a task'
-            # errors inside LightRAG 1.4's new worker pool.
-            resp = await asyncio.to_thread(embedding, model=emb_model, input=texts, **kwargs)
-            # litellm synchronous embedding returns an object where we can access .data
-            return [d["embedding"] for d in resp["data"]]
-        except Exception as e:
-            log.error(f"LiteLLM embedding failed: {e}")
-            raise
+    elif prov_lower == "google":
+        from lightrag.llm.google import gemini_complete_if_cache, gemini_embed
+        llm_model_func = gemini_complete_if_cache
+        embedding_func = gemini_embed
+
+    elif prov_lower == "ollama":
+        from lightrag.llm.ollama import ollama_model_if_cache, ollama_embed
+        llm_model_func = ollama_model_if_cache
+        embedding_func = ollama_embed
+        
+    else:
+        from lightrag.llm.openai import openai_complete_if_cache, openai_embed
+        llm_model_func = openai_complete_if_cache
+        embedding_func = openai_embed
 
     try:
         _lightrag_instance = LightRAG(
