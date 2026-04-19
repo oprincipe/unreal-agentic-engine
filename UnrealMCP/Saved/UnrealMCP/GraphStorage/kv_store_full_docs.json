@@ -1,0 +1,37 @@
+{
+  "doc-ecb426a3018c9810c54330d316808dbb": {
+    "content": "Fact 2",
+    "file_path": "unknown_source",
+    "create_time": 1776592804,
+    "update_time": 1776592804,
+    "_id": "doc-ecb426a3018c9810c54330d316808dbb"
+  },
+  "doc-46de795608eca2da36a3fcfb463f3c97": {
+    "content": "Fact 8",
+    "file_path": "unknown_source",
+    "create_time": 1776593406,
+    "update_time": 1776593406,
+    "_id": "doc-46de795608eca2da36a3fcfb463f3c97"
+  },
+  "doc-cf73ab8b2f8ce505e72b0727ce7820b9": {
+    "content": "Fact 9",
+    "file_path": "unknown_source",
+    "create_time": 1776593450,
+    "update_time": 1776593450,
+    "_id": "doc-cf73ab8b2f8ce505e72b0727ce7820b9"
+  },
+  "doc-d10328a7b0f650d8c1272ec71ad6d8c0": {
+    "content": "Fact 21",
+    "file_path": "unknown_source",
+    "create_time": 1776593522,
+    "update_time": 1776593522,
+    "_id": "doc-d10328a7b0f650d8c1272ec71ad6d8c0"
+  },
+  "doc-e8d905234dad46eae99c8f911a8f45ef": {
+    "content": "Fact 30",
+    "file_path": "unknown_source",
+    "create_time": 1776593549,
+    "update_time": 1776593549,
+    "_id": "doc-e8d905234dad46eae99c8f911a8f45ef"
+  }
+}

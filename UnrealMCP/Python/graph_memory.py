@@ -1,7 +1,23 @@
 import os
 import logging
+import threading
 import asyncio
+import time
 import nest_asyncio
+
+# --- MONKEYPATCH LIGHTRAG WORKER POOL ---
+# LightRAG 1.4.15 introduced a PriorityQueue WorkerPool that heavily relies on asyncio.wait_for
+# which causes "Timeout should be used inside a task" bugs on Python 3.14 Windows.
+# We monkeypatch the decorator here to bypass the worker pool and just execute the LLM/Embedding calls inline.
+import lightrag.utils
+def _bypass_priority_limit_async_func_call(*args, **kwargs):
+    def decorator(func):
+        async def wrapper(*func_args, **func_kwargs):
+            return await func(*func_args, **func_kwargs)
+        return wrapper
+    return decorator
+lightrag.utils.priority_limit_async_func_call = _bypass_priority_limit_async_func_call
+# ----------------------------------------
 
 # Apply nest_asyncio to allow asyncio.run() within threaded environments if needed
 nest_asyncio.apply()
@@ -63,7 +79,6 @@ def get_lightrag(provider: str, api_key: str, model: str):
         from lightrag.llm.anthropic import anthropic_complete_if_cache
         from lightrag.llm.openai import openai_embed
         llm_model_func = anthropic_complete_if_cache
-        # Anthropic doesn't have native embeddings, fallback to OpenAI
         embedding_func = openai_embed
         log.info("Anthropic provider selected: Using OpenAI for embeddings. Ensure OPENAI_API_KEY is set.")
 
@@ -88,10 +103,8 @@ def get_lightrag(provider: str, api_key: str, model: str):
             llm_model_func=llm_model_func,
             embedding_func=embedding_func
         )
-        import asyncio
-        from lightrag.utils import always_get_an_event_loop
-        loop = always_get_an_event_loop()
-        loop.run_until_complete(_lightrag_instance.initialize_storages())
+        # Initialize storages in the background loop safely
+        run_async(_lightrag_instance.initialize_storages())
         
         _current_provider = provider
         _current_model = model
@@ -101,15 +114,44 @@ def get_lightrag(provider: str, api_key: str, model: str):
         
     return _lightrag_instance
 
+_bg_loop = None
+_bg_thread = None
+
+def _start_bg_loop():
+    global _bg_loop
+    async def run_forever():
+        global _bg_loop
+        _bg_loop = asyncio.get_running_loop()
+        # Keep the loop alive forever
+        while True:
+            await asyncio.sleep(3600)
+    
+    # asyncio.run automatically initializes 3.12+ contextvars required for asyncio.timeout
+    asyncio.run(run_forever())
+
+def _ensure_bg_loop():
+    global _bg_loop, _bg_thread
+    if _bg_loop is None or not getattr(_bg_loop, 'is_running', lambda: False)():
+        _bg_thread = threading.Thread(target=_start_bg_loop, daemon=True)
+        _bg_thread.start()
+        while _bg_loop is None or not _bg_loop.is_running():
+            time.sleep(0.01)
+
+def run_async(coro):
+    """Executes a coroutine safely inside the background event loop."""
+    _ensure_bg_loop()
+    future = asyncio.run_coroutine_threadsafe(coro, _bg_loop)
+    return future.result()
+
 
 def insert_knowledge(provider: str, api_key: str, model: str, text: str) -> str:
-    """Inserts a fact or graph text into LightRAG."""
+    """Inserts a fact or graph text into LightRAG using the background event loop."""
     rag = get_lightrag(provider, api_key, model)
     if not rag:
         return "Error: Could not initialize RAG engine."
     
     try:
-        rag.insert(text)
+        run_async(rag.ainsert(text))
         return "Knowledge successfully encoded into Semantic Graph."
     except Exception as e:
         log.error(f"LightRAG insert error: {e}")
@@ -117,14 +159,14 @@ def insert_knowledge(provider: str, api_key: str, model: str, text: str) -> str:
 
 
 def query_knowledge(provider: str, api_key: str, model: str, question: str, mode: str = "hybrid") -> str:
-    """Queries LightRAG semantic memory."""
+    """Queries LightRAG semantic memory using the background event loop."""
     rag = get_lightrag(provider, api_key, model)
     if not rag:
         return "Error: Could not initialize RAG engine."
     
     try:
         from lightrag.utils import QueryParam
-        return rag.query(question, param=QueryParam(mode=mode))
+        return run_async(rag.aquery(question, param=QueryParam(mode=mode)))
     except Exception as e:
         log.error(f"LightRAG query error: {e}")
         return f"Warning: Failed to query knowledge. {e}"
