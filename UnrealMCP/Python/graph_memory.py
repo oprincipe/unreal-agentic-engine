@@ -73,7 +73,7 @@ def _call_llm(provider: str, api_key: str, model: str, prompt: str) -> str:
     """Make a raw LLM call. Returns the text response."""
     prov = provider.lower()
     try:
-        if prov == "anthropic":
+        if "anthropic" in prov or "claude" in prov:
             import anthropic
             client = anthropic.Anthropic(api_key=api_key)
             msg = client.messages.create(
@@ -83,7 +83,7 @@ def _call_llm(provider: str, api_key: str, model: str, prompt: str) -> str:
             )
             return msg.content[0].text.strip()
 
-        elif prov == "openai":
+        elif "openai" in prov or "gpt" in prov:
             import openai
             client = openai.OpenAI(api_key=api_key)
             resp = client.chat.completions.create(
@@ -93,7 +93,7 @@ def _call_llm(provider: str, api_key: str, model: str, prompt: str) -> str:
             )
             return resp.choices[0].message.content.strip()
 
-        elif prov == "google":
+        elif "google" in prov or "gemini" in prov:
             import google.generativeai as genai
             genai.configure(api_key=api_key)
             m = genai.GenerativeModel(model)
