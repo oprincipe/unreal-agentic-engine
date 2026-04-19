@@ -77,6 +77,13 @@ def get_lightrag(provider: str, api_key: str, model: str):
             )
         return resp.choices[0].message.content
 
+    from lightrag.utils import wrap_embedding_func_with_attrs
+
+    emb_dim = 1536
+    if prov_lower == "ollama" or prov_lower == "google":
+        emb_dim = 768
+
+    @wrap_embedding_func_with_attrs(embedding_dim=emb_dim, max_token_size=8192)
     async def embedding_func(texts, **kwargs):
         from litellm import aembedding
         if prov_lower == "openai":
