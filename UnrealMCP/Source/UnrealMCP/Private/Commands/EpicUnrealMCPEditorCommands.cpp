@@ -56,6 +56,10 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleCommand(const FStrin
     {
         return HandleSetActorTransform(Params);
     }
+    else if (CommandType == TEXT("set_actor_material"))
+    {
+        return HandleSetActorMaterial(Params);
+    }
     // Blueprint actor spawning
     else if (CommandType == TEXT("spawn_blueprint_actor"))
     {
@@ -397,4 +401,56 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleSpawnBlueprintActor(
     // This function will now correctly call the implementation in BlueprintCommands
     FEpicUnrealMCPBlueprintCommands BlueprintCommands;
     return BlueprintCommands.HandleCommand(TEXT("spawn_blueprint_actor"), Params);
+}
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleSetActorMaterial(const TSharedPtr<FJsonObject>& Params)
+{
+    FString ActorName, MaterialPath;
+    if (!Params->TryGetStringField(TEXT("actor_name"), ActorName))
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'actor_name' parameter"));
+    
+    if (!Params->TryGetStringField(TEXT("material_path"), MaterialPath))
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'material_path' parameter"));
+
+    UMaterialInterface* MaterialAsset = Cast<UMaterialInterface>(UEditorAssetLibrary::LoadAsset(MaterialPath));
+    if (!MaterialAsset)
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Failed to load material asset at: %s"), *MaterialPath));
+
+    TArray<AActor*> AllActors;
+    UGameplayStatics::GetAllActorsOfClass(GWorld, AActor::StaticClass(), AllActors);
+
+    for (AActor* Actor : AllActors)
+    {
+        if (Actor && (Actor->GetName() == ActorName || Actor->GetActorLabel() == ActorName))
+        {
+            TArray<UMeshComponent*> MeshComponents;
+            Actor->GetComponents<UMeshComponent>(MeshComponents);
+
+            if (MeshComponents.Num() == 0)
+                return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Actor does not have any mesh components to apply material to"));
+
+            int32 PaintedCount = 0;
+            for (UMeshComponent* MeshComp : MeshComponents)
+            {
+                if (!MeshComp) continue;
+
+                const int32 NumMaterials = MeshComp->GetNumMaterials();
+                for (int32 MatIndex = 0; MatIndex < NumMaterials; ++MatIndex)
+                {
+                    MeshComp->SetMaterial(MatIndex, MaterialAsset);
+                    PaintedCount++;
+                }
+            }
+
+            if (PaintedCount > 0)
+            {
+                TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+                ResultObj->SetStringField(TEXT("status"), TEXT("success"));
+                ResultObj->SetStringField(TEXT("message"), FString::Printf(TEXT("Applied material %s to %d slots on %s"), *MaterialPath, PaintedCount, *ActorName));
+                return ResultObj;
+            }
+        }
+    }
+    
+    return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Actor not found: %s"), *ActorName));
 }

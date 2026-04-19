@@ -244,9 +244,41 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "name": {"type": "string", "description": "The exact name of the actor to color (e.g. 'StaticMeshActor1')"},
-                "color_hex": {"type": "string", "description": "The RGB hexadecimal color code to apply (e.g. '#FF0000' for red, '#00FF00' for green, '#FFFF00' for yellow)."}
+                "color_hex": {"type": "string", "description": "The RGB hexadecimal color code to apply (e.g. '#FF0000' for red)."}
             },
             "required": ["name", "color_hex"],
+        },
+    },
+    {
+        "name": "create_material_instance",
+        "description": "Create a new Material Instance asset in the Content Browser and save it to disk. Allows setting color/vector parameters.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "parent_path": {"type": "string", "description": "Path to the parent Material (e.g. '/Engine/BasicShapes/BasicShapeMaterial')"},
+                "dest_path": {"type": "string", "description": "Path to save the new Material Instance (e.g. '/Game/Blueprints/M_Red')"},
+                "vector_parameters": {
+                    "type": "object",
+                    "description": "Dict of parameter name to Hex color strings (e.g. {\"Color\": \"#FF0000\"})"
+                },
+                "scalar_parameters": {
+                    "type": "object",
+                    "description": "Dict of parameter name to float values"
+                }
+            },
+            "required": ["parent_path", "dest_path"],
+        },
+    },
+    {
+        "name": "set_actor_material",
+        "description": "Apply an existing Material asset (.uasset) to all mesh components of an actor in the level.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "actor_name": {"type": "string", "description": "The exact name of the actor (e.g. 'StaticMeshActor1')"},
+                "material_path": {"type": "string", "description": "Path to the Material asset (e.g. '/Game/Blueprints/M_Red')"}
+            },
+            "required": ["actor_name", "material_path"],
         },
     },
     {

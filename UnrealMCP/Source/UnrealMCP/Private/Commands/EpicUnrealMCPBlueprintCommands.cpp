@@ -2021,6 +2021,34 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleCreateMaterialIns
     if (!MIC) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to create MIC"));
 
     MIC->SetParentEditorOnly(ParentMat);
+    
+    // Parse vector parameters
+    const TSharedPtr<FJsonObject>* VectorsObj;
+    if (Params->TryGetObjectField(TEXT("vector_parameters"), VectorsObj))
+    {
+        for (const auto& Elem : (*VectorsObj)->Values)
+        {
+            if (Elem.Value->Type == EJson::String) // Hex color
+            {
+                FColor HexColor = FColor::FromHex(Elem.Value->AsString());
+                MIC->SetVectorParameterValueEditorOnly(FMaterialParameterInfo(*Elem.Key), FLinearColor(HexColor));
+            }
+        }
+    }
+
+    // Parse scalar parameters
+    const TSharedPtr<FJsonObject>* ScalarsObj;
+    if (Params->TryGetObjectField(TEXT("scalar_parameters"), ScalarsObj))
+    {
+        for (const auto& Elem : (*ScalarsObj)->Values)
+        {
+            if (Elem.Value->Type == EJson::Number)
+            {
+                MIC->SetScalarParameterValueEditorOnly(FMaterialParameterInfo(*Elem.Key), Elem.Value->AsNumber());
+            }
+        }
+    }
+
     MIC->PostEditChange();
     
     UEditorAssetLibrary::SaveLoadedAsset(MIC);
