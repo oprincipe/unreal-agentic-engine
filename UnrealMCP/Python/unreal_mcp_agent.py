@@ -195,7 +195,7 @@ TOOLS = [
     },
     {
         "name": "spawn_actor",
-        "description": "Spawn an actor or static mesh into the Unreal level at the given location.",
+        "description": "Spawn an actor or static mesh into the Unreal level at the given location with optional rotation and scale.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -206,6 +206,8 @@ TOOLS = [
                         "x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"},
                     },
                 },
+                "rotation": {"type": "object", "properties": {"pitch": {"type": "number"}, "yaw": {"type": "number"}, "roll": {"type": "number"}}},
+                "scale": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}},
             },
             "required": ["class_path"],
         },
@@ -219,6 +221,7 @@ TOOLS = [
                 "actor_name": {"type": "string"},
                 "location": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}},
                 "rotation": {"type": "object", "properties": {"pitch": {"type": "number"}, "yaw": {"type": "number"}, "roll": {"type": "number"}}},
+                "scale": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}},
             },
             "required": ["actor_name"],
         },
