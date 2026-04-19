@@ -148,6 +148,10 @@ def _start_bg_loop():
         while True:
             await asyncio.sleep(3600)
     
+    import sys
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        
     # asyncio.run automatically initializes 3.12+ contextvars required for asyncio.timeout
     asyncio.run(run_forever())
 
