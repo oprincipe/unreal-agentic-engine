@@ -440,9 +440,20 @@ def agent_ollama(messages: List[Dict], api_key: str, model: str) -> str:
         if not calls:
             content = msg.get("content", "").strip()
             # Fallback for models that output raw JSON instead of using the API correctly
-            if content.startswith("{") and content.endswith("}"):
+            
+            # Clean up potential markdown code blocks
+            clean_content = content
+            if clean_content.startswith("```json"):
+                clean_content = clean_content[7:]
+            elif clean_content.startswith("```"):
+                clean_content = clean_content[3:]
+            if clean_content.endswith("```"):
+                clean_content = clean_content[:-3]
+            clean_content = clean_content.strip()
+
+            if clean_content.startswith("{") and clean_content.endswith("}"):
                 try:
-                    parsed = json.loads(content)
+                    parsed = json.loads(clean_content)
                     if "name" in parsed and ("arguments" in parsed or "parameters" in parsed):
                         fn_name = parsed["name"]
                         fn_args = parsed.get("arguments", parsed.get("parameters", {}))
