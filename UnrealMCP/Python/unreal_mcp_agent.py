@@ -677,6 +677,19 @@ class AgentHandler(BaseHTTPRequestHandler):
             history = load_session(_db_path, session_id, limit=100)
             self.send_json(200, {"messages": history})
 
+        elif path == "/restart":
+            self.send_json(200, {"status": "restarting"})
+            log.info("\n[!] Restart requested by Unreal UI. Rebooting Agent...\n")
+            
+            def do_restart():
+                import time, os, sys
+                time.sleep(0.5)
+                # Restart the current python process
+                os.execv(sys.executable, ['python'] + sys.argv)
+                
+            import threading
+            threading.Thread(target=do_restart, daemon=True).start()
+
         else:
             self.send_json(404, {"error": "Not found"})
 

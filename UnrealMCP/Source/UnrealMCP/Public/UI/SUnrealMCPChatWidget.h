@@ -24,6 +24,7 @@ private:
     // UI Actions
     FReply OnSendClicked();
     FReply OnNewChatClicked();
+    FReply OnRestartAgentClicked();
     void OnInputTextCommitted(const FText& InText, ETextCommit::Type CommitMethod);
 
     // Chat Rendering
