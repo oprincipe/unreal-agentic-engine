@@ -337,14 +337,22 @@ def _run_tool(tool_name: str, tool_input: Dict) -> str:
         try:
             from graph_memory import insert_knowledge
             return insert_knowledge(getattr(_agent_tls, "provider", ""), getattr(_agent_tls, "api_key", ""), getattr(_agent_tls, "model", ""), tool_input.get("information_text", ""))
-        except ImportError:
-            return "Error: graph_memory module not found. Did you pip install dependencies?"
+        except ImportError as e:
+            log.error(f"Failed to import graph_memory in remember_information: {e}")
+            return f"Error: graph_memory module failed to load due to python error: {e}"
+        except Exception as e:
+            log.error(f"Unexpected error loading graph_memory: {e}")
+            return f"Error: {e}"
     elif tool_name == "query_memory":
         try:
             from graph_memory import query_knowledge
             return query_knowledge(getattr(_agent_tls, "provider", ""), getattr(_agent_tls, "api_key", ""), getattr(_agent_tls, "model", ""), tool_input.get("question", ""))
-        except ImportError:
-            return "Error: graph_memory module not found."
+        except ImportError as e:
+            log.error(f"Failed to import graph_memory in query_memory: {e}")
+            return f"Error: graph_memory module failed to load due to python error: {e}"
+        except Exception as e:
+            log.error(f"Unexpected error loading graph_memory: {e}")
+            return f"Error: {e}"
 
     result = call_unreal(tool_name, tool_input)
     return json.dumps(result)
