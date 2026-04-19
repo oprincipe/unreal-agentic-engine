@@ -72,16 +72,22 @@ void FUnrealMCPEditorSettingsCustomization::CustomizeDetails(IDetailLayoutBuilde
         RebuildModelOptions(CurrentProvider, GetDefaultModelsForProvider(CurrentProvider));
     }
 
-    // ── Hook Provider change → force panel rebuild + reset model list ──
-    TSharedRef<IPropertyHandle> ProviderProp = DetailBuilder.GetProperty(
-        GET_MEMBER_NAME_CHECKED(UUnrealMCPEditorSettings, Provider));
+    TSharedRef<IPropertyHandle> ProviderProp  = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UUnrealMCPEditorSettings, Provider));
+    TSharedRef<IPropertyHandle> ModelNameProp = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UUnrealMCPEditorSettings, ModelName));
+    TSharedRef<IPropertyHandle> ApiKeyProp    = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UUnrealMCPEditorSettings, ApiKey));
+    TSharedRef<IPropertyHandle> OllamaUrlProp = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UUnrealMCPEditorSettings, OllamaServerUrl));
 
-    ProviderProp->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([this]()
+    ProviderProp->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([this, ModelNameProp]()
     {
         const UUnrealMCPEditorSettings* S = GetDefault<UUnrealMCPEditorSettings>();
         if (S)
         {
-            RebuildModelOptions(S->Provider, GetDefaultModelsForProvider(S->Provider));
+            TArray<FString> Defaults = GetDefaultModelsForProvider(S->Provider);
+            RebuildModelOptions(S->Provider, Defaults);
+            
+            // Reset selected model to match the new provider (or clear if Ollama needs a fetch)
+            FString NewSelection = Defaults.Num() > 0 ? Defaults[0] : TEXT("");
+            ModelNameProp->SetValue(NewSelection);
         }
         if (CachedDetailBuilder)
         {
@@ -91,9 +97,6 @@ void FUnrealMCPEditorSettingsCustomization::CustomizeDetails(IDetailLayoutBuilde
 
     // ── Hide/show ApiKey vs OllamaServerUrl ──
     bool bIsOllama = (CurrentProvider == EUnrealMCPProvider::Ollama);
-    TSharedRef<IPropertyHandle> ApiKeyProp    = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UUnrealMCPEditorSettings, ApiKey));
-    TSharedRef<IPropertyHandle> OllamaUrlProp = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UUnrealMCPEditorSettings, OllamaServerUrl));
-    TSharedRef<IPropertyHandle> ModelNameProp = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UUnrealMCPEditorSettings, ModelName));
 
     if (bIsOllama)   DetailBuilder.HideProperty(ApiKeyProp);
     else             DetailBuilder.HideProperty(OllamaUrlProp);
@@ -238,6 +241,14 @@ FReply FUnrealMCPEditorSettingsCustomization::OnRefreshModelsClicked()
 
                 // Update static cache and rebuild the panel
                 RebuildModelOptions(EUnrealMCPProvider::Ollama, Names);
+                
+                UUnrealMCPEditorSettings* MutableSettings = GetMutableDefault<UUnrealMCPEditorSettings>();
+                if (MutableSettings && !Names.Contains(MutableSettings->ModelName))
+                {
+                    MutableSettings->ModelName = Names.Num() > 0 ? Names[0] : TEXT("");
+                    MutableSettings->SaveConfig();
+                }
+
                 if (CachedDetailBuilder)
                 {
                     CachedDetailBuilder->ForceRefreshDetails();
@@ -248,10 +259,17 @@ FReply FUnrealMCPEditorSettingsCustomization::OnRefreshModelsClicked()
     else
     {
         // For cloud providers just refresh from hardcoded list
-        const UUnrealMCPEditorSettings* S = GetDefault<UUnrealMCPEditorSettings>();
-        if (S)
+        UUnrealMCPEditorSettings* MutableSettings = GetMutableDefault<UUnrealMCPEditorSettings>();
+        if (MutableSettings)
         {
-            RebuildModelOptions(S->Provider, GetDefaultModelsForProvider(S->Provider));
+            TArray<FString> Defaults = GetDefaultModelsForProvider(MutableSettings->Provider);
+            RebuildModelOptions(MutableSettings->Provider, Defaults);
+            
+            if (Defaults.Num() > 0 && !Defaults.Contains(MutableSettings->ModelName))
+            {
+                MutableSettings->ModelName = Defaults[0];
+                MutableSettings->SaveConfig();
+            }
             if (CachedDetailBuilder) CachedDetailBuilder->ForceRefreshDetails();
         }
     }
