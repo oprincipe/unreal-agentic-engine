@@ -139,20 +139,29 @@ void FMCPServerRunnable::HandleClientConnection(TSharedPtr<FSocket> InClientSock
                 TArray<FString> Messages;
                 MessageBuffer.ParseIntoArray(Messages, TEXT("\n"), true);
                 
-                UE_LOG(LogTemp, Display, TEXT("MCPServerRunnable: Found %d message(s) in buffer"), Messages.Num());
+                bool bEndsWithNewline = MessageBuffer.EndsWith(TEXT("\n"));
+                int32 NumComplete = bEndsWithNewline ? Messages.Num() : Messages.Num() - 1;
                 
-                // Process all complete messages
-                for (int32 i = 0; i < Messages.Num() - 1; ++i)
+                UE_LOG(LogTemp, Display, TEXT("MCPServerRunnable: Found %d message(s), of which %d complete"), Messages.Num(), NumComplete);
+                
+                for (int32 i = 0; i < NumComplete; ++i)
                 {
-                    UE_LOG(LogTemp, Display, TEXT("MCPServerRunnable: Processing message %d: '%s'"), 
-                           i + 1, *Messages[i]);
-                    ProcessMessage(InClientSocket, Messages[i]);
+                    FString CleanMsg = Messages[i].TrimStartAndEnd();
+                    if (!CleanMsg.IsEmpty())
+                    {
+                        ProcessMessage(InClientSocket, CleanMsg);
+                    }
                 }
                 
-                // Keep any incomplete message in the buffer
-                MessageBuffer = Messages.Last();
-                UE_LOG(LogTemp, Display, TEXT("MCPServerRunnable: Remaining buffer after processing: %s"), 
-                       *MessageBuffer);
+                if (!bEndsWithNewline && Messages.Num() > 0)
+                {
+                    MessageBuffer = Messages.Last();
+                    UE_LOG(LogTemp, Display, TEXT("MCPServerRunnable: Kept incomplete message in buffer"));
+                }
+                else
+                {
+                    MessageBuffer.Empty();
+                }
             }
             else
             {
