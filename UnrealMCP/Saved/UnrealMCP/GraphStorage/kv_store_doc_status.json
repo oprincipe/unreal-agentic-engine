@@ -9,12 +9,12 @@
     "content_summary": "Fact 2",
     "content_length": 6,
     "created_at": "2026-04-19T10:00:04.610966+00:00",
-    "updated_at": "2026-04-19T10:12:29.043936+00:00",
+    "updated_at": "2026-04-19T10:16:53.751286+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260419_110004_72faa3a9",
     "metadata": {
-      "processing_start_time": 1776593549,
-      "processing_end_time": 1776593549
+      "processing_start_time": 1776593813,
+      "processing_end_time": 1776593813
     }
   },
   "doc-46de795608eca2da36a3fcfb463f3c97": {
@@ -27,12 +27,12 @@
     "content_summary": "Fact 8",
     "content_length": 6,
     "created_at": "2026-04-19T10:10:06.744716+00:00",
-    "updated_at": "2026-04-19T10:12:29.044021+00:00",
+    "updated_at": "2026-04-19T10:16:53.751378+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260419_111006_4c90acbf",
     "metadata": {
-      "processing_start_time": 1776593549,
-      "processing_end_time": 1776593549
+      "processing_start_time": 1776593813,
+      "processing_end_time": 1776593813
     }
   },
   "doc-cf73ab8b2f8ce505e72b0727ce7820b9": {
@@ -45,12 +45,12 @@
     "content_summary": "Fact 9",
     "content_length": 6,
     "created_at": "2026-04-19T10:10:50.232614+00:00",
-    "updated_at": "2026-04-19T10:12:29.055289+00:00",
+    "updated_at": "2026-04-19T10:16:53.765011+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260419_111050_10de6fda",
     "metadata": {
-      "processing_start_time": 1776593549,
-      "processing_end_time": 1776593549
+      "processing_start_time": 1776593813,
+      "processing_end_time": 1776593813
     }
   },
   "doc-d10328a7b0f650d8c1272ec71ad6d8c0": {
@@ -63,12 +63,12 @@
     "content_summary": "Fact 21",
     "content_length": 7,
     "created_at": "2026-04-19T10:12:02.088736+00:00",
-    "updated_at": "2026-04-19T10:12:29.055372+00:00",
+    "updated_at": "2026-04-19T10:16:53.765094+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260419_111202_216d6ea1",
     "metadata": {
-      "processing_start_time": 1776593549,
-      "processing_end_time": 1776593549
+      "processing_start_time": 1776593813,
+      "processing_end_time": 1776593813
     }
   },
   "doc-e8d905234dad46eae99c8f911a8f45ef": {
@@ -81,12 +81,30 @@
     "content_summary": "Fact 30",
     "content_length": 7,
     "created_at": "2026-04-19T10:12:29.018705+00:00",
-    "updated_at": "2026-04-19T10:12:29.062265+00:00",
+    "updated_at": "2026-04-19T10:16:53.777809+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260419_111229_0342d8e4",
     "metadata": {
-      "processing_start_time": 1776593549,
-      "processing_end_time": 1776593549
+      "processing_start_time": 1776593813,
+      "processing_end_time": 1776593813
+    }
+  },
+  "doc-7cf45dcd50b12b57f0e4b42f5d3e8452": {
+    "status": "failed",
+    "error_msg": "'OPENAI_API_KEY'",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-7cf45dcd50b12b57f0e4b42f5d3e8452"
+    ],
+    "content_summary": "Fact 40",
+    "content_length": 7,
+    "created_at": "2026-04-19T10:16:53.711213+00:00",
+    "updated_at": "2026-04-19T10:16:53.777901+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260419_111653_5b8121b3",
+    "metadata": {
+      "processing_start_time": 1776593813,
+      "processing_end_time": 1776593813
     }
   }
 }

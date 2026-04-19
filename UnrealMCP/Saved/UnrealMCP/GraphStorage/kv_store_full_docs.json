@@ -33,5 +33,12 @@
     "create_time": 1776593549,
     "update_time": 1776593549,
     "_id": "doc-e8d905234dad46eae99c8f911a8f45ef"
+  },
+  "doc-7cf45dcd50b12b57f0e4b42f5d3e8452": {
+    "content": "Fact 40",
+    "file_path": "unknown_source",
+    "create_time": 1776593813,
+    "update_time": 1776593813,
+    "_id": "doc-7cf45dcd50b12b57f0e4b42f5d3e8452"
   }
 }

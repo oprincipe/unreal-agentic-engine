@@ -101,7 +101,9 @@ def get_lightrag(provider: str, api_key: str, model: str):
         _lightrag_instance = LightRAG(
             working_dir=wd,
             llm_model_func=llm_model_func,
-            embedding_func=embedding_func
+            llm_model_name=model,
+            embedding_func=embedding_func,
+            llm_model_kwargs={"api_key": api_key}
         )
         # Initialize storages in the background loop safely
         run_async(_lightrag_instance.initialize_storages())
@@ -165,7 +167,7 @@ def query_knowledge(provider: str, api_key: str, model: str, question: str, mode
         return "Error: Could not initialize RAG engine."
     
     try:
-        from lightrag.utils import QueryParam
+        from lightrag import QueryParam
         return run_async(rag.aquery(question, param=QueryParam(mode=mode)))
     except Exception as e:
         log.error(f"LightRAG query error: {e}")
