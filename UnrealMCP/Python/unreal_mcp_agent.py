@@ -436,17 +436,17 @@ TOOLS = [
     },
     {
         "name": "connect_blueprint_nodes",
-        "description": "Connect two nodes in the visual scripting graph.",
+        "description": "Connect two nodes in the visual scripting graph. Node IDs are returned when creating nodes.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "blueprint_name": {"type": "string"},
-                "source_node": {"type": "string"},
-                "source_pin": {"type": "string"},
-                "target_node": {"type": "string"},
-                "target_pin": {"type": "string"}
+                "source_node_id": {"type": "string"},
+                "source_pin": {"type": "string", "description": "E.g., 'then' for execution pins, or property names for data pins."},
+                "target_node_id": {"type": "string"},
+                "target_pin": {"type": "string", "description": "E.g., 'execute' for execution pins, or property names for data pins."}
             },
-            "required": ["blueprint_name", "source_node", "source_pin", "target_node", "target_pin"]
+            "required": ["blueprint_name", "source_node_id", "source_pin", "target_node_id", "target_pin"]
         }
     },
     {
