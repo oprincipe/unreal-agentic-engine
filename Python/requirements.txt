@@ -2,3 +2,6 @@ anthropic>=0.40.0
 openai>=1.50.0
 google-genai>=1.0.0
 ollama>=0.3.0
+lightrag-hku>=1.1.0
+litellm>=1.40.0
+nest_asyncio>=1.6.0

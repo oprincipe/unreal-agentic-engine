@@ -257,6 +257,28 @@ TOOLS = [
             },
         },
     },
+    {
+        "name": "remember_information",
+        "description": "Store a user preference or level architecture layout into the persistent Graph Memory (GraphRAG) so you can recall it in future sessions.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "information_text": {"type": "string", "description": "The fact, rule, or architectural data to store."},
+            },
+            "required": ["information_text"],
+        },
+    },
+    {
+        "name": "query_memory",
+        "description": "Query the persistent Graph Memory (GraphRAG) to retrieve past user preferences or previously stored data about the scene.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "question": {"type": "string", "description": "The topic or precise question to ask the memory database."},
+            },
+            "required": ["question"],
+        },
+    },
 ]
 
 
@@ -264,7 +286,22 @@ TOOLS = [
 # Provider Adapters
 # ────────────────────────────────────────
 
+_agent_tls = threading.local()
+
 def _run_tool(tool_name: str, tool_input: Dict) -> str:
+    if tool_name == "remember_information":
+        try:
+            from graph_memory import insert_knowledge
+            return insert_knowledge(getattr(_agent_tls, "provider", ""), getattr(_agent_tls, "api_key", ""), getattr(_agent_tls, "model", ""), tool_input.get("information_text", ""))
+        except ImportError:
+            return "Error: graph_memory module not found. Did you pip install dependencies?"
+    elif tool_name == "query_memory":
+        try:
+            from graph_memory import query_knowledge
+            return query_knowledge(getattr(_agent_tls, "provider", ""), getattr(_agent_tls, "api_key", ""), getattr(_agent_tls, "model", ""), tool_input.get("question", ""))
+        except ImportError:
+            return "Error: graph_memory module not found."
+
     result = call_unreal(tool_name, tool_input)
     return json.dumps(result)
 
@@ -522,6 +559,10 @@ def agent_test_connection(provider: str, api_key: str, model: str) -> str:
 
 
 def dispatch_agent(provider: str, messages: List[Dict], api_key: str, model: str) -> str:
+    _agent_tls.provider = provider
+    _agent_tls.api_key = api_key
+    _agent_tls.model = model
+    
     prov = provider.lower()
     if "anthropic" in prov:
         return agent_anthropic(messages, api_key, model)
