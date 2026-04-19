@@ -171,8 +171,8 @@ def call_unreal(command: str, params: Dict) -> Dict:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(300.0)
         s.connect((UNREAL_HOST, UNREAL_PORT))
-        payload = json.dumps({"type": command, "params": params}).encode("utf-8")
-        s.sendall(payload)
+        payload_str = json.dumps({"command": command, "params": params}) + "\n"
+        s.sendall(payload_str.encode("utf-8"))
         data = _recv_full(s)
         s.close()
         return json.loads(data.decode("utf-8"))

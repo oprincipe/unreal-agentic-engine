@@ -305,13 +305,22 @@ void FMCPServerRunnable::ProcessMessage(TSharedPtr<FSocket> Client, const FStrin
     
     // Send response with newline terminator
     Response += TEXT("\n");
-    int32 BytesSent = 0;
     
-    UE_LOG(LogTemp, Display, TEXT("MCPServerRunnable: Sending response: %s"), *Response);
+    UE_LOG(LogTemp, Display, TEXT("MCPServerRunnable: Sending response (Length: %d)"), Response.Len());
     
     FTCHARToUTF8 Utf8Response(*Response);
-    if (!Client->Send((uint8*)Utf8Response.Get(), Utf8Response.Length(), BytesSent))
+    int32 TotalBytesSent = 0;
+    const uint8* DataPtr = (const uint8*)Utf8Response.Get();
+    const int32 DataLength = Utf8Response.Length();
+
+    while (TotalBytesSent < DataLength)
     {
-        UE_LOG(LogTemp, Error, TEXT("MCPServerRunnable: Failed to send response"));
+        int32 BytesSentThisCall = 0;
+        if (!Client->Send(DataPtr + TotalBytesSent, DataLength - TotalBytesSent, BytesSentThisCall))
+        {
+            UE_LOG(LogTemp, Error, TEXT("MCPServerRunnable: Failed to send response completely. Sent %d of %d bytes"), TotalBytesSent, DataLength);
+            break;
+        }
+        TotalBytesSent += BytesSentThisCall;
     }
 } 
