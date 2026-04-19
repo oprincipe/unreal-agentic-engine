@@ -27,13 +27,27 @@ _graph_lock = threading.Lock()
 # ── Storage path ───────────────────────────────────────────────────────────────
 
 def _get_graph_path() -> str:
+    # Priority 1: UNREALMCP_DB_PATH env var set by the C++ launcher
+    #   e.g. C:\Users\...\AI_Mcp_Test\Saved\UnrealMCP\chat_history.db
+    #   → we want C:\Users\...\AI_Mcp_Test\Saved\UnrealMCP\
+    env_db = os.environ.get("UNREALMCP_DB_PATH", "")
+    if env_db:
+        base = os.path.dirname(env_db)
+        os.makedirs(base, exist_ok=True)
+        return os.path.join(base, "knowledge_graph.graphml")
+
+    # Priority 2: _db_path set at runtime by the HTTP server
     try:
         from unreal_mcp_agent import _db_path
-        base = os.path.dirname(_db_path) if _db_path else None
+        if _db_path:
+            base = os.path.dirname(_db_path)
+            os.makedirs(base, exist_ok=True)
+            return os.path.join(base, "knowledge_graph.graphml")
     except Exception:
-        base = None
-    if not base:
-        base = os.path.join(os.path.dirname(__file__), "..", "Saved", "UnrealMCP")
+        pass
+
+    # Fallback: next to the script
+    base = os.path.join(os.path.dirname(__file__), "..", "Saved", "UnrealMCP")
     os.makedirs(base, exist_ok=True)
     return os.path.join(base, "knowledge_graph.graphml")
 

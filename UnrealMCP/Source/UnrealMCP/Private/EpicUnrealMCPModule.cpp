@@ -195,6 +195,11 @@ void FEpicUnrealMCPModule::EnsureAgentRunning()
 
 	FString Args = FString::Printf(TEXT("\"%s\""), *ScriptPath);
 
+	// Expose the project DB path to the Python agent via environment variable.
+	// Both unreal_mcp_agent.py and graph_memory.py read UNREALMCP_DB_PATH to
+	// locate the correct [PROJECT]/Saved/UnrealMCP/ directory.
+	FPlatformMisc::SetEnvironmentVar(TEXT("UNREALMCP_DB_PATH"), *DbPath);
+
 	uint32 OutProcessId = 0;
 	AgentProcess = FPlatformProcess::CreateProc(
 		*PythonExe,
