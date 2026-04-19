@@ -13,6 +13,9 @@ import lightrag.utils
 def _bypass_priority_limit_async_func_call(*args, **kwargs):
     def decorator(func):
         async def wrapper(*func_args, **func_kwargs):
+            func_kwargs.pop("_priority", None)
+            func_kwargs.pop("_timeout", None)
+            func_kwargs.pop("_queue_timeout", None)
             return await func(*func_args, **func_kwargs)
         return wrapper
     return decorator
@@ -134,6 +137,13 @@ def _start_bg_loop():
     async def run_forever():
         global _bg_loop
         _bg_loop = asyncio.get_running_loop()
+        
+        try:
+            import sniffio
+            sniffio.current_async_library_cvar.set("asyncio")
+        except Exception:
+            pass
+
         # Keep the loop alive forever
         while True:
             await asyncio.sleep(3600)
@@ -152,7 +162,16 @@ def _ensure_bg_loop():
 def run_async(coro):
     """Executes a coroutine safely inside the background event loop."""
     _ensure_bg_loop()
-    future = asyncio.run_coroutine_threadsafe(coro, _bg_loop)
+    
+    async def _sniffio_wrapper():
+        try:
+            import sniffio
+            sniffio.current_async_library_cvar.set("asyncio")
+        except Exception:
+            pass
+        return await coro
+        
+    future = asyncio.run_coroutine_threadsafe(_sniffio_wrapper(), _bg_loop)
     return future.result()
 
 
