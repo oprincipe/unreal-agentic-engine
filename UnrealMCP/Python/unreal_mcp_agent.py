@@ -522,6 +522,7 @@ def agent_anthropic(messages: List[Dict], api_key: str, model: str) -> str:
         "You are an AI Agent operating inside Unreal Engine 5. "
         "You have tools to inspect, modify and control the editor world. "
         "You have a persistent Graph Memory. If the user asks a question, refers to past preferences, names, or project facts you don't immediately know, ALWAYS use the `query_memory` tool first to check your memory. "
+        "IMPORTANT: Whenever you create or modify an Actor, Blueprint, Material, or any project asset, YOU MUST use the `remember_information` tool to store what you did so you don't forget it in future sessions! "
         "Always prefer using tools over guessing. Be concise and direct."
     )
 
@@ -587,6 +588,7 @@ def agent_openai(messages: List[Dict], api_key: str, model: str) -> str:
             "You are an AI Agent operating inside Unreal Engine 5. "
             "Use your tools to inspect and modify the editor world. "
             "You have a persistent Graph Memory. If the user asks a question, refers to past preferences, names, or project facts you don't immediately know, ALWAYS use the `query_memory` tool first to check your memory. "
+            "IMPORTANT: Whenever you create or modify an Actor, Blueprint, Material, or any project asset, YOU MUST use the `remember_information` tool to store what you did so you don't forget it in future sessions! "
             "Be concise."
         ),
     }
