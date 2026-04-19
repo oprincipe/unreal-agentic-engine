@@ -1819,8 +1819,32 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleSpawnActor(const 
     }
 
     const FVector Location(X, Y, Z);
-    AActor* Spawned = World->SpawnActor<AActor>(SpawnClass, Location, FRotator::ZeroRotator);
+
+    double Pitch = 0, Yaw = 0, Roll = 0;
+    const TSharedPtr<FJsonObject>* RotObj;
+    if (Params->TryGetObjectField(TEXT("rotation"), RotObj))
+    {
+        (*RotObj)->TryGetNumberField(TEXT("pitch"), Pitch);
+        (*RotObj)->TryGetNumberField(TEXT("yaw"), Yaw);
+        (*RotObj)->TryGetNumberField(TEXT("roll"), Roll);
+    }
+    const FRotator Rotation(Pitch, Yaw, Roll);
+
+    AActor* Spawned = World->SpawnActor<AActor>(SpawnClass, Location, Rotation);
     if (!Spawned) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to spawn actor"));
+
+    double ScaleX = 1.0, ScaleY = 1.0, ScaleZ = 1.0;
+    const TSharedPtr<FJsonObject>* ScaleObj;
+    if (Params->TryGetObjectField(TEXT("scale"), ScaleObj))
+    {
+        (*ScaleObj)->TryGetNumberField(TEXT("x"), ScaleX);
+        (*ScaleObj)->TryGetNumberField(TEXT("y"), ScaleY);
+        (*ScaleObj)->TryGetNumberField(TEXT("z"), ScaleZ);
+        
+        FTransform T = Spawned->GetTransform();
+        T.SetScale3D(FVector(ScaleX, ScaleY, ScaleZ));
+        Spawned->SetActorTransform(T);
+    }
 
     if (LoadedMesh)
     {
