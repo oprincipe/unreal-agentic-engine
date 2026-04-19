@@ -236,6 +236,12 @@ void FEpicUnrealMCPModule::StopAgent()
 		FPlatformProcess::CloseProc(AgentProcess);
 	}
 }
+
+void FEpicUnrealMCPModule::RestartAgent()
+{
+	StopAgent();
+	EnsureAgentRunning();
+}
 #endif
 
 TArray<FString> FEpicUnrealMCPModule::GetRecentLogs() const

@@ -1,4 +1,5 @@
 #include "UI/SUnrealMCPChatWidget.h"
+#include "EpicUnrealMCPModule.h"
 #include "Settings/UnrealMCPEditorSettings.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Layout/SScrollBox.h"
@@ -283,27 +284,25 @@ void SUnrealMCPChatWidget::HideLoadingIndicator()
     }
 }
 
-FReply SUnrealMCPChatWidget::OnRestartAgentClicked()
+	FReply SUnrealMCPChatWidget::OnRestartAgentClicked()
 {
-    // Fire async HTTP POST → Python agent to trigger os.execv reboot
-    const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
-    Request->SetURL(TEXT("http://127.0.0.1:55558/restart"));
-    Request->SetVerb(TEXT("POST"));
-    Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
-    Request->SetTimeout(5.0f); // Quick timeout
-    Request->SetContentAsString(TEXT("{}"));
-    Request->ProcessRequest();
+#if WITH_EDITOR
+	if (FEpicUnrealMCPModule::IsAvailable())
+	{
+		FEpicUnrealMCPModule::Get().RestartAgent();
+	}
+#endif
 
-    // Show immediate feedback locally
-    FChatMessage NoticeMsg;
-    NoticeMsg.Role      = TEXT("assistant");
-    NoticeMsg.Content   = TEXT("🔄 System: Sent restart command to Python Agent. If the DOS console is still open, the script has rebooted itself without closing the window.");
-    NoticeMsg.Timestamp = FDateTime::Now();
-    Messages.Add(NoticeMsg);
-    AddMessageToUI(NoticeMsg);
-    ScrollToBottom();
+	// Show immediate feedback locally
+	FChatMessage NoticeMsg;
+	NoticeMsg.Role      = TEXT("assistant");
+	NoticeMsg.Content   = TEXT("🔄 System: Rebooted Python Agent natively. The script interface has been refreshed.");
+	NoticeMsg.Timestamp = FDateTime::Now();
+	Messages.Add(NoticeMsg);
+	AddMessageToUI(NoticeMsg);
+	ScrollToBottom();
 
-    return FReply::Handled();
+	return FReply::Handled();
 }
 
 FReply SUnrealMCPChatWidget::OnNewChatClicked()

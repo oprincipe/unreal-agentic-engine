@@ -28,6 +28,9 @@ public:
 	/** Starts unreal_mcp_agent.py if not already running. Can be called externally (e.g. from Settings). */
 	void EnsureAgentRunning();
 
+	/** Kills the agent process if running, and relaunches it. */
+	void RestartAgent();
+
 private:
 	void RegisterMenus();
 	TSharedRef<SDockTab> OnSpawnChatTab(const FSpawnTabArgs& SpawnTabArgs);
