@@ -212,6 +212,28 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleSpawnActor(const TSh
     {
         NewActor = World->SpawnActor<ACameraActor>(ACameraActor::StaticClass(), Location, Rotation, SpawnParams);
     }
+    else if (ActorType == TEXT("Blueprint"))
+    {
+        FString BlueprintPath;
+        if (!Params->TryGetStringField(TEXT("blueprint_path"), BlueprintPath))
+        {
+            return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'blueprint_path' parameter for Blueprint actor type"));
+        }
+        
+        UObject* LoadedObj = UEditorAssetLibrary::LoadAsset(BlueprintPath);
+        if (!LoadedObj)
+        {
+            return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Failed to load blueprint at path: %s"), *BlueprintPath));
+        }
+
+        UBlueprint* LoadedBP = Cast<UBlueprint>(LoadedObj);
+        if (!LoadedBP || !LoadedBP->GeneratedClass)
+        {
+            return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Loaded asset is not a valid Blueprints class"));
+        }
+
+        NewActor = World->SpawnActor<AActor>(LoadedBP->GeneratedClass, Location, Rotation, SpawnParams);
+    }
     else
     {
         return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Unknown actor type: %s"), *ActorType));
