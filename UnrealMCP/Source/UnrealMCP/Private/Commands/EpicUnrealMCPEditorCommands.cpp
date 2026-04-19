@@ -232,7 +232,7 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleDeleteActor(const TS
     
     for (AActor* Actor : AllActors)
     {
-        if (Actor && Actor->GetName() == ActorName)
+        if (Actor && (Actor->GetName() == ActorName || Actor->GetActorLabel() == ActorName))
         {
             // Store actor info before deletion for the response
             TSharedPtr<FJsonObject> ActorInfo = FEpicUnrealMCPCommonUtils::ActorToJsonObject(Actor);
@@ -265,7 +265,7 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleSetActorTransform(co
     
     for (AActor* Actor : AllActors)
     {
-        if (Actor && Actor->GetName() == ActorName)
+        if (Actor && (Actor->GetName() == ActorName || Actor->GetActorLabel() == ActorName))
         {
             TargetActor = Actor;
             break;

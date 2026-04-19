@@ -453,6 +453,9 @@ TSharedPtr<FJsonValue> FEpicUnrealMCPCommonUtils::ActorToJson(const AActor* Acto
     
     TSharedPtr<FJsonObject> ActorObject = MakeShared<FJsonObject>();
     ActorObject->SetStringField(TEXT("name"), Actor->GetName());
+#if WITH_EDITOR
+    ActorObject->SetStringField(TEXT("label"), Actor->GetActorLabel());
+#endif
     ActorObject->SetStringField(TEXT("class"), Actor->GetClass()->GetName());
     
     FVector Location = Actor->GetActorLocation();
@@ -488,6 +491,9 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPCommonUtils::ActorToJsonObject(const AActo
     
     TSharedPtr<FJsonObject> ActorObject = MakeShared<FJsonObject>();
     ActorObject->SetStringField(TEXT("name"), Actor->GetName());
+#if WITH_EDITOR
+    ActorObject->SetStringField(TEXT("label"), Actor->GetActorLabel());
+#endif
     ActorObject->SetStringField(TEXT("class"), Actor->GetClass()->GetName());
     
     FVector Location = Actor->GetActorLocation();
