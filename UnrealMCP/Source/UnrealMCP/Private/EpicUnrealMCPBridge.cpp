@@ -204,10 +204,12 @@ FString UEpicUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const T
                 UE_LOG(LogTemp, Warning, TEXT("EpicUnrealMCPBridge: chat_message received but Python server must be running to handle it."));
             }
             // Editor Commands (legacy actor manipulation)
-            else if (CommandType == TEXT("find_actors_by_name") ||
+            else if (CommandType == TEXT("get_actors_in_level") ||
+                     CommandType == TEXT("find_actors_by_name") ||
+                     CommandType == TEXT("spawn_actor") ||
                      CommandType == TEXT("delete_actor") ||
-                     CommandType == TEXT("spawn_blueprint_actor") ||
                      CommandType == TEXT("set_actor_color") ||
+                     CommandType == TEXT("set_actor_transform") ||
                      CommandType == TEXT("set_actor_material"))
             {
                 ResultJson = EditorCommands->HandleCommand(CommandType, Params);
@@ -236,10 +238,8 @@ FString UEpicUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const T
                      CommandType == TEXT("read_material") ||
                      CommandType == TEXT("read_blueprint_macros") ||
                      CommandType == TEXT("read_sound_class") ||
-                     CommandType == TEXT("get_actors_in_level") ||
-                     CommandType == TEXT("spawn_actor") ||
+                     CommandType == TEXT("spawn_blueprint_actor") ||
                      CommandType == TEXT("destroy_actor") ||
-                     CommandType == TEXT("set_actor_transform") ||
                      CommandType == TEXT("start_play_in_editor") ||
                      CommandType == TEXT("stop_play_in_editor") ||
                      CommandType == TEXT("get_editor_logs") ||
