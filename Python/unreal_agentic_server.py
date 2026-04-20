@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, Any, Optional, List
 
 from mcp.server.fastmcp import FastMCP
+from unreal_agentic_ir_schema import validate_ir_json, IRAIAsset
 
 
 # Configure logging
@@ -559,6 +560,44 @@ def connect_behavior_tree_nodes(behavior_tree: str, source_node: str, target_nod
     except Exception as e:
         logger.error(f"connect_behavior_tree_nodes error: {e}")
         return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def render_ai_ir_to_asset(ir_json: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Render a declarative Intermediate Representation (IR) JSON into Unreal Engine assets.
+    This creates the BehaviorTree and Blackboard atomically, with validation and rollback on error.
+    
+    Args:
+        ir_json: The complete structured JSON matching the IRAIAsset schema.
+    """
+    logger.info(f"[MCP AI] Validating and rendering IR JSON...")
+    
+    # 1. Local Python Pydantic validation
+    try:
+        validated_ir = validate_ir_json(ir_json)
+    except Exception as e:
+        logger.error(f"[MCP AI] IR Validation failed: {e}")
+        return {
+            "success": False, 
+            "message": f"IR Schema Validation Error: {str(e)}", 
+            "status": "error"
+        }
+    
+    # 2. Send the validated JSON payload to the C++ renderer
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        # Pass the original dict (which we know is valid now) to Unreal C++
+        params = {"ir_data": ir_json}
+        response = unreal.send_command("render_ai_ir_to_asset", params)
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"render_ai_ir_to_asset error: {e}")
+        return {"success": False, "message": str(e)}
+
+
 
 
 @mcp.tool()

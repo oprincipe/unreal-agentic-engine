@@ -15,4 +15,5 @@ private:
     TSharedPtr<FJsonObject> HandleAddBehaviorTreeNode(const TSharedPtr<FJsonObject>& Params);
     TSharedPtr<FJsonObject> HandleConnectBehaviorTreeNodes(const TSharedPtr<FJsonObject>& Params);
     TSharedPtr<FJsonObject> HandleLayoutBehaviorTree(const TSharedPtr<FJsonObject>& Params);
+    TSharedPtr<FJsonObject> HandleRenderAIIrToAsset(const TSharedPtr<FJsonObject>& Params);
 };

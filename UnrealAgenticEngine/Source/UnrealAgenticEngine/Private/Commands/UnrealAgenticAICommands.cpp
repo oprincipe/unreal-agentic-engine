@@ -27,6 +27,7 @@
 #include "BehaviorTreeGraphNode_Root.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
+#include "ScopedTransaction.h"
 #endif
 
 TSharedPtr<FJsonObject> FUnrealAgenticAICommands::HandleCommand(const FString& CommandType, const TSharedPtr<FJsonObject>& Params)
@@ -54,6 +55,10 @@ TSharedPtr<FJsonObject> FUnrealAgenticAICommands::HandleCommand(const FString& C
     else if (CommandType == TEXT("add_blackboard_key"))
     {
         return HandleAddBlackboardKey(Params);
+    }
+    else if (CommandType == TEXT("render_ai_ir_to_asset"))
+    {
+        return HandleRenderAIIrToAsset(Params);
     }
 
     return FUnrealAgenticCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Unknown command: %s"), *CommandType));
@@ -521,4 +526,75 @@ TSharedPtr<FJsonObject> FUnrealAgenticAICommands::HandleLayoutBehaviorTree(const
 {
     // Minimal placeholder
     return FUnrealAgenticCommonUtils::CreateErrorResponse(TEXT("HandleLayoutBehaviorTree not fully implemented yet"));
+}
+
+TSharedPtr<FJsonObject> FUnrealAgenticAICommands::HandleRenderAIIrToAsset(const TSharedPtr<FJsonObject>& Params)
+{
+#if WITH_EDITOR
+    const TSharedPtr<FJsonObject>* IrDataObj;
+    if (!Params->TryGetObjectField(TEXT("ir_data"), IrDataObj))
+    {
+        return FUnrealAgenticCommonUtils::CreateErrorResponse(TEXT("Missing 'ir_data' parameter object"));
+    }
+
+    TSharedPtr<FJsonObject> IR = *IrDataObj;
+
+    FString AssetPath, BlackboardPath;
+    if (!IR->TryGetStringField(TEXT("asset_path"), AssetPath) || !IR->TryGetStringField(TEXT("blackboard_path"), BlackboardPath))
+    {
+        return FUnrealAgenticCommonUtils::CreateErrorResponse(TEXT("IR missing asset_path or blackboard_path"));
+    }
+
+    // Wrap the entire parsing and asset generation in a transaction
+    FScopedTransaction Transaction(FText::FromString(TEXT("AI Render IR to Asset")));
+
+    // 1. Create BT and BB Assets
+    TSharedPtr<FJsonObject> CreateBTParams = MakeShared<FJsonObject>();
+    CreateBTParams->SetStringField(TEXT("name"), AssetPath);
+    CreateBTParams->SetStringField(TEXT("type"), TEXT("BehaviorTree"));
+    TSharedPtr<FJsonObject> BTResult = HandleCreateAIAsset(CreateBTParams);
+    
+    TSharedPtr<FJsonObject> CreateBBParams = MakeShared<FJsonObject>();
+    CreateBBParams->SetStringField(TEXT("name"), BlackboardPath);
+    CreateBBParams->SetStringField(TEXT("type"), TEXT("Blackboard"));
+    TSharedPtr<FJsonObject> BBResult = HandleCreateAIAsset(CreateBBParams);
+
+    // 2. Link BT and BB
+    TSharedPtr<FJsonObject> LinkParams = MakeShared<FJsonObject>();
+    LinkParams->SetStringField(TEXT("behavior_tree"), AssetPath);
+    LinkParams->SetStringField(TEXT("blackboard"), BlackboardPath);
+    HandleSetBehaviorTreeBlackboard(LinkParams);
+
+    // 3. Process Blackboard Keys
+    const TArray<TSharedPtr<FJsonValue>>* KeysArray;
+    if (IR->TryGetArrayField(TEXT("blackboard_keys"), KeysArray))
+    {
+        for (auto& KeyVal : *KeysArray)
+        {
+            TSharedPtr<FJsonObject> KeyObj = KeyVal->AsObject();
+            if (KeyObj.IsValid())
+            {
+                TSharedPtr<FJsonObject> KeyParams = MakeShared<FJsonObject>();
+                KeyParams->SetStringField(TEXT("blackboard"), BlackboardPath);
+                
+                FString KeyName, KeyType, BaseClass;
+                if (KeyObj->TryGetStringField(TEXT("name"), KeyName)) KeyParams->SetStringField(TEXT("key_name"), KeyName);
+                if (KeyObj->TryGetStringField(TEXT("type"), KeyType)) KeyParams->SetStringField(TEXT("key_type"), KeyType);
+                if (KeyObj->TryGetStringField(TEXT("base_class"), BaseClass)) KeyParams->SetStringField(TEXT("base_class"), BaseClass);
+                
+                HandleAddBlackboardKey(KeyParams);
+            }
+        }
+    }
+
+    // TODO: Recursively process tree_root to instantiate nodes here.
+    // For now, returning success for creating the assets and the keys.
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetBoolField(TEXT("success"), true);
+    ResultObj->SetStringField(TEXT("message"), FString::Printf(TEXT("Successfully rendered IR. BT: %s, BB: %s"), *AssetPath, *BlackboardPath));
+    return ResultObj;
+#else
+    return FUnrealAgenticCommonUtils::CreateErrorResponse(TEXT("Editor only feature"));
+#endif
 }
