@@ -43,6 +43,7 @@ You don't just ask the AI to "build a house". You can say:
 | **Asset Management** | `duplicate_asset`, `read_data_asset`, `read_input_action`, `create_material_instance` | Manipulate and read existing project assets |
 | **Actor & Scene Control** | `get_actors_in_level`, `spawn_actor`, `destroy_actor`, `set_actor_transform` | Precise control over scene objects and transforms |
 | **Editor Pipeline** | `start_play_in_editor`, `stop_play_in_editor`, `get_editor_logs` | Run games & capture engine errors via AI |
+| **AI Systems & Authoring** | `create_ai_asset`, `set_behavior_tree_blackboard`, `add_blackboard_key`, `add_behavior_tree_node`, `connect_behavior_tree_nodes` | Programmatically author AI logic, Behavior Trees, and State Blackboard entries |
 
 ---
 
