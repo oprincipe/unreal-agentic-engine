@@ -272,7 +272,8 @@ FString UUnrealAgenticEngine::ExecuteCommand(const FString& CommandType, const T
                      CommandType == TEXT("connect_behavior_tree_nodes") ||
                      CommandType == TEXT("layout_behavior_tree") ||
                      CommandType == TEXT("set_behavior_tree_blackboard") ||
-                     CommandType == TEXT("add_blackboard_key"))
+                     CommandType == TEXT("add_blackboard_key") ||
+                     CommandType == TEXT("render_ai_ir_to_asset"))
             {
                 ResultJson = AICommands->HandleCommand(CommandType, Params);
             }
