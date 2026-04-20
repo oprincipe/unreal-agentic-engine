@@ -58,14 +58,14 @@ You don't just ask the AI to "build a house". You can say:
 
 **Add Plugin to Your Existing Project**
 ```bash
-git clone https://github.com/oprincipe/unreal-mcp-agent.git
-cd unreal-mcp-agent
+git clone https://github.com/oprincipe/unreal-agentic-bridge-agent.git
+cd unreal-agentic-bridge-agent
 
 # Copy the plugin to your Unreal project
-cp -r UnrealMCP/ YourProject/Plugins/
+cp -r UnrealAgenticBridge/ YourProject/Plugins/
 
 # Enable it in the Unreal Editor
-Edit → Plugins → Search "UnrealMCP" → Enable → Restart Editor
+Edit → Plugins → Search "UnrealAgenticBridge" → Enable → Restart Editor
 ```
 
 ### 2. Launch the MCP Server
@@ -73,7 +73,7 @@ Edit → Plugins → Search "UnrealMCP" → Enable → Restart Editor
 ```bash
 cd Python
 # Launch the Agentic Server
-uv run unreal_mcp_server_blueprints.py
+uv run unreal_agentic_server.py
 ```
 
 ### 3. Native Editor Chat Integration (Zero Setup!)
@@ -109,9 +109,9 @@ If you prefer using an external IDE like Cursor or Claude Desktop, you can hook 
       "command": "uv",
       "args": [
         "--directory", 
-        "/absolute/path/to/unreal-mcp-agent/UnrealMCP/Python",
+        "/absolute/path/to/unreal-agentic-bridge-agent/UnrealAgenticBridge/Python",
         "run", 
-        "unreal_mcp_server_blueprints.py"
+        "unreal_agentic_server.py"
       ]
     }
   }
@@ -132,8 +132,8 @@ If you prefer using an external IDE like Cursor or Claude Desktop, you can hook 
 
 ```mermaid
 graph TB
-    A[AI Client<br/>Cursor/Claude/Windsurf] -->|MCP Protocol| B[Python Server<br/>unreal_mcp_server_blueprints.py]
-    B -->|TCP Socket| C[C++ Plugin<br/>UnrealMCP]
+    A[AI Client<br/>Cursor/Claude/Windsurf] -->|MCP Protocol| B[Python Server<br/>unreal_agentic_server.py]
+    B -->|TCP Socket| C[C++ Plugin<br/>UnrealAgenticBridge]
     C -->|Native API| D[Unreal Engine 5.5+<br/>Editor & Runtime]
     
     B --> E[Agentic Tools]

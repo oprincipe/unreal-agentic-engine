@@ -31,9 +31,9 @@ You can allow the AI to test the game for you:
 - `stop_play_in_editor` halts the simulation.
 
 ## How to use it in Cursor / Claude
-1. Open the project where you dropped the `UnrealMCP` plugin.
+1. Open the project where you dropped the `UnrealAgenticBridge` plugin.
 2. Ensure the Plugin is enabled and your Editor is open.
-3. Configure your `mcp.json` to point your MCP client to the `Python/unreal_mcp_server_blueprints.py` server using `uv run`.
+3. Configure your `mcp.json` to point your MCP client to the `Python/unreal_agentic_server.py` server using `uv run`.
 
 That's it! Now just open a prompt and type:
 > "Spawn a crate in the level, start the game, and read the logs to see if it causes any warnings."
