@@ -1,4 +1,4 @@
-# Unreal MCP Agent 🤖
+# Unreal Agentic Bridge 🤖
 
 [![Unreal Engine](https://img.shields.io/badge/Unreal%20Engine-5.5%2B-orange.svg)](https://www.unrealengine.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -11,7 +11,7 @@
 
 ## 🚀 True Agentic Workflow
 
-Unlike traditional procedural generation plugins, **Unreal MCP Agent** gives the AI "eyes" and "hands" inside the Editor.
+Unlike traditional procedural generation plugins, **Unreal Agentic Bridge** gives the AI "eyes" and "hands" inside the Editor.
 You don't just ask the AI to "build a house". You can say:
 > "Read the variables of `BP_GameplaySettings`, tell me if gravity is too low, spawn a physics crate, run Play-in-Editor, and check the Engine logs to see if it triggers the collision warning."
 
