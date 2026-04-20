@@ -7,6 +7,7 @@
 #include "HighResScreenshot.h"
 #include "Engine/GameViewportClient.h"
 #include "Misc/FileHelper.h"
+#include "Commands/EpicUnrealMCPAssetMutatorCommands.h"
 #include "GameFramework/Actor.h"
 #include "Engine/Selection.h"
 #include "Kismet/GameplayStatics.h"
@@ -21,7 +22,7 @@
 #include "Engine/Blueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "EditorAssetLibrary.h"
-#include "Commands/EpicUnrealMCPBlueprintCommands.h"
+
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 
@@ -427,9 +428,9 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleSetActorTransform(co
 
 TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleSpawnBlueprintActor(const TSharedPtr<FJsonObject>& Params)
 {
-    // This function will now correctly call the implementation in BlueprintCommands
-    FEpicUnrealMCPBlueprintCommands BlueprintCommands;
-    return BlueprintCommands.HandleCommand(TEXT("spawn_blueprint_actor"), Params);
+    // Forward to the AssetMutator subsystem
+    FEpicUnrealMCPAssetMutatorCommands AssetMutatorCommands;
+    return AssetMutatorCommands.HandleCommand(TEXT("spawn_blueprint_actor"), Params);
 }
 
 TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleSetActorMaterial(const TSharedPtr<FJsonObject>& Params)

@@ -11,7 +11,9 @@
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Commands/EpicUnrealMCPEditorCommands.h"
-#include "Commands/EpicUnrealMCPBlueprintCommands.h"
+#include "Commands/EpicUnrealMCPBlueprintQueryCommands.h"
+#include "Commands/EpicUnrealMCPBlueprintAuthoringCommands.h"
+#include "Commands/EpicUnrealMCPAssetMutatorCommands.h"
 #include "EpicUnrealMCPBridge.generated.h"
 
 class FMCPServerRunnable;
@@ -55,6 +57,8 @@ private:
 	uint16 Port;
 
 	// Command handler instances
-	TSharedPtr<FEpicUnrealMCPEditorCommands> EditorCommands;
-	TSharedPtr<FEpicUnrealMCPBlueprintCommands> BlueprintCommands;
-}; 
+	TUniquePtr<FEpicUnrealMCPEditorCommands> EditorCommands;
+	TUniquePtr<FEpicUnrealMCPBlueprintQueryCommands> BlueprintQueryCommands;
+	TUniquePtr<FEpicUnrealMCPBlueprintAuthoringCommands> BlueprintAuthoringCommands;
+	TUniquePtr<FEpicUnrealMCPAssetMutatorCommands> AssetMutatorCommands;
+};

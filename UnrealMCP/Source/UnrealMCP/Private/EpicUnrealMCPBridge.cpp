@@ -27,7 +27,9 @@
 #include "EditorSubsystem.h"
 // Include our new command handler classes
 #include "Commands/EpicUnrealMCPEditorCommands.h"
-#include "Commands/EpicUnrealMCPBlueprintCommands.h"
+#include "Commands/EpicUnrealMCPBlueprintQueryCommands.h"
+#include "Commands/EpicUnrealMCPBlueprintAuthoringCommands.h"
+#include "Commands/EpicUnrealMCPAssetMutatorCommands.h"
 
 // Default settings
 #define MCP_SERVER_HOST "127.0.0.1"
@@ -35,14 +37,18 @@
 
 UEpicUnrealMCPBridge::UEpicUnrealMCPBridge()
 {
-    EditorCommands = MakeShared<FEpicUnrealMCPEditorCommands>();
-    BlueprintCommands = MakeShared<FEpicUnrealMCPBlueprintCommands>();
+    EditorCommands = MakeUnique<FEpicUnrealMCPEditorCommands>();
+    BlueprintQueryCommands = MakeUnique<FEpicUnrealMCPBlueprintQueryCommands>();
+    BlueprintAuthoringCommands = MakeUnique<FEpicUnrealMCPBlueprintAuthoringCommands>();
+    AssetMutatorCommands = MakeUnique<FEpicUnrealMCPAssetMutatorCommands>();
 }
 
 UEpicUnrealMCPBridge::~UEpicUnrealMCPBridge()
 {
     EditorCommands.Reset();
-    BlueprintCommands.Reset();
+    BlueprintQueryCommands.Reset();
+    BlueprintAuthoringCommands.Reset();
+    AssetMutatorCommands.Reset();
 }
 
 // Initialize subsystem
@@ -214,20 +220,8 @@ FString UEpicUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const T
             {
                 ResultJson = EditorCommands->HandleCommand(CommandType, Params);
             }
-            // Blueprint Commands
-            else if (CommandType == TEXT("create_blueprint") || 
-                     CommandType == TEXT("add_component_to_blueprint") || 
-                     CommandType == TEXT("set_physics_properties") ||
-                     CommandType == TEXT("compile_blueprint") ||
-                     CommandType == TEXT("set_static_mesh_properties") ||
-                     CommandType == TEXT("set_mesh_material_color") ||
-                     CommandType == TEXT("create_blueprint_variable") ||
-                     CommandType == TEXT("add_blueprint_event_node") ||
-                     CommandType == TEXT("add_blueprint_function_node") ||
-                     CommandType == TEXT("connect_blueprint_nodes") ||
-                     CommandType == TEXT("add_blueprint_branch_node") ||
-                     CommandType == TEXT("create_blueprint_custom_event") ||
-                     CommandType == TEXT("read_blueprint_enum") ||
+            // Blueprint Query Commands
+            else if (CommandType == TEXT("read_blueprint_enum") ||
                      CommandType == TEXT("read_blueprint_struct") ||
                      CommandType == TEXT("read_blueprint_functions") ||
                      CommandType == TEXT("read_data_asset") ||
@@ -238,18 +232,45 @@ FString UEpicUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const T
                      CommandType == TEXT("read_material") ||
                      CommandType == TEXT("read_blueprint_macros") ||
                      CommandType == TEXT("read_sound_class") ||
-                     CommandType == TEXT("spawn_blueprint_actor") ||
-                     CommandType == TEXT("destroy_actor") ||
+                     CommandType == TEXT("read_blueprint_graph") ||
+                     CommandType == TEXT("search_blueprint_nodes"))
+            {
+                ResultJson = BlueprintQueryCommands->HandleCommand(CommandType, Params);
+            }
+            // Blueprint Authoring Commands
+            else if (CommandType == TEXT("create_blueprint") || 
+                     CommandType == TEXT("add_component_to_blueprint") || 
+                     CommandType == TEXT("compile_blueprint") ||
+                     CommandType == TEXT("create_blueprint_variable") ||
+                     CommandType == TEXT("add_blueprint_event_node") ||
+                     CommandType == TEXT("add_blueprint_function_node") ||
+                     CommandType == TEXT("connect_blueprint_nodes") ||
+                     CommandType == TEXT("add_blueprint_branch_node") ||
+                     CommandType == TEXT("create_blueprint_custom_event") ||
+                     CommandType == TEXT("delete_blueprint_node") ||
+                     CommandType == TEXT("break_blueprint_link") ||
+                     CommandType == TEXT("delete_blueprint_component"))
+            {
+                ResultJson = BlueprintAuthoringCommands->HandleCommand(CommandType, Params);
+            }
+            // Asset Mutator Commands
+            else if (CommandType == TEXT("set_physics_properties") ||
+                     CommandType == TEXT("set_static_mesh_properties") ||
+                     CommandType == TEXT("set_mesh_material_color") ||
+                     CommandType == TEXT("duplicate_asset") ||
+                     CommandType == TEXT("spawn_blueprint_actor"))
+            {
+                ResultJson = AssetMutatorCommands->HandleCommand(CommandType, Params);
+            }
+            // Fallback Editor commands moving out of Blueprint monolith
+            else if (CommandType == TEXT("destroy_actor") ||
                      CommandType == TEXT("start_play_in_editor") ||
                      CommandType == TEXT("stop_play_in_editor") ||
                      CommandType == TEXT("get_editor_logs") ||
-                     CommandType == TEXT("create_material_instance") ||
-                     CommandType == TEXT("search_blueprint_nodes") ||
-                     CommandType == TEXT("duplicate_asset"))
+                     CommandType == TEXT("create_material_instance"))
             {
-                ResultJson = BlueprintCommands->HandleCommand(CommandType, Params);
+                ResultJson = AssetMutatorCommands->HandleCommand(CommandType, Params);
             }
-
             else
             {
                 ResponseJson->SetStringField(TEXT("status"), TEXT("error"));

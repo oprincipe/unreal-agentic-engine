@@ -57,7 +57,7 @@ void FEpicUnrealMCPCommonUtils::GetIntArrayFromJson(const TSharedPtr<FJsonObject
     {
         for (const TSharedPtr<FJsonValue>& Value : *JsonArray)
         {
-            OutArray.Add((int32)Value->AsNumber());
+            OutArray.Add(static_cast<int32>(Value->AsNumber()));
         }
     }
 }
@@ -76,7 +76,7 @@ void FEpicUnrealMCPCommonUtils::GetFloatArrayFromJson(const TSharedPtr<FJsonObje
     {
         for (const TSharedPtr<FJsonValue>& Value : *JsonArray)
         {
-            OutArray.Add((float)Value->AsNumber());
+            OutArray.Add(static_cast<float>(Value->AsNumber()));
         }
     }
 }
@@ -93,8 +93,8 @@ FVector2D FEpicUnrealMCPCommonUtils::GetVector2DFromJson(const TSharedPtr<FJsonO
     const TArray<TSharedPtr<FJsonValue>>* JsonArray;
     if (JsonObject->TryGetArrayField(FieldName, JsonArray) && JsonArray->Num() >= 2)
     {
-        Result.X = (float)(*JsonArray)[0]->AsNumber();
-        Result.Y = (float)(*JsonArray)[1]->AsNumber();
+        Result.X = static_cast<float>((*JsonArray)[0]->AsNumber());
+        Result.Y = static_cast<float>((*JsonArray)[1]->AsNumber());
     }
     
     return Result;
@@ -112,9 +112,9 @@ FVector FEpicUnrealMCPCommonUtils::GetVectorFromJson(const TSharedPtr<FJsonObjec
     const TArray<TSharedPtr<FJsonValue>>* JsonArray;
     if (JsonObject->TryGetArrayField(FieldName, JsonArray) && JsonArray->Num() >= 3)
     {
-        Result.X = (float)(*JsonArray)[0]->AsNumber();
-        Result.Y = (float)(*JsonArray)[1]->AsNumber();
-        Result.Z = (float)(*JsonArray)[2]->AsNumber();
+        Result.X = static_cast<float>((*JsonArray)[0]->AsNumber());
+        Result.Y = static_cast<float>((*JsonArray)[1]->AsNumber());
+        Result.Z = static_cast<float>((*JsonArray)[2]->AsNumber());
     }
     else
     {
@@ -122,9 +122,9 @@ FVector FEpicUnrealMCPCommonUtils::GetVectorFromJson(const TSharedPtr<FJsonObjec
         if (JsonObject->TryGetObjectField(FieldName, JsonObjPtr))
         {
             TSharedPtr<FJsonObject> Obj = *JsonObjPtr;
-            if (Obj->HasField(TEXT("x"))) Result.X = (float)Obj->GetNumberField(TEXT("x"));
-            if (Obj->HasField(TEXT("y"))) Result.Y = (float)Obj->GetNumberField(TEXT("y"));
-            if (Obj->HasField(TEXT("z"))) Result.Z = (float)Obj->GetNumberField(TEXT("z"));
+            if (Obj->HasField(TEXT("x"))) Result.X = static_cast<float>(Obj->GetNumberField(TEXT("x")));
+            if (Obj->HasField(TEXT("y"))) Result.Y = static_cast<float>(Obj->GetNumberField(TEXT("y")));
+            if (Obj->HasField(TEXT("z"))) Result.Z = static_cast<float>(Obj->GetNumberField(TEXT("z")));
         }
     }
     
@@ -143,9 +143,9 @@ FRotator FEpicUnrealMCPCommonUtils::GetRotatorFromJson(const TSharedPtr<FJsonObj
     const TArray<TSharedPtr<FJsonValue>>* JsonArray;
     if (JsonObject->TryGetArrayField(FieldName, JsonArray) && JsonArray->Num() >= 3)
     {
-        Result.Pitch = (float)(*JsonArray)[0]->AsNumber();
-        Result.Yaw = (float)(*JsonArray)[1]->AsNumber();
-        Result.Roll = (float)(*JsonArray)[2]->AsNumber();
+        Result.Pitch = static_cast<float>((*JsonArray)[0]->AsNumber());
+        Result.Yaw = static_cast<float>((*JsonArray)[1]->AsNumber());
+        Result.Roll = static_cast<float>((*JsonArray)[2]->AsNumber());
     }
     else
     {
@@ -153,9 +153,9 @@ FRotator FEpicUnrealMCPCommonUtils::GetRotatorFromJson(const TSharedPtr<FJsonObj
         if (JsonObject->TryGetObjectField(FieldName, JsonObjPtr))
         {
             TSharedPtr<FJsonObject> Obj = *JsonObjPtr;
-            if (Obj->HasField(TEXT("pitch"))) Result.Pitch = (float)Obj->GetNumberField(TEXT("pitch"));
-            if (Obj->HasField(TEXT("yaw"))) Result.Yaw = (float)Obj->GetNumberField(TEXT("yaw"));
-            if (Obj->HasField(TEXT("roll"))) Result.Roll = (float)Obj->GetNumberField(TEXT("roll"));
+            if (Obj->HasField(TEXT("pitch"))) Result.Pitch = static_cast<float>(Obj->GetNumberField(TEXT("pitch")));
+            if (Obj->HasField(TEXT("yaw"))) Result.Yaw = static_cast<float>(Obj->GetNumberField(TEXT("yaw")));
+            if (Obj->HasField(TEXT("roll"))) Result.Roll = static_cast<float>(Obj->GetNumberField(TEXT("roll")));
         }
     }
     
@@ -419,12 +419,13 @@ UEdGraphPin* FEpicUnrealMCPCommonUtils::FindPin(UEdGraphNode* Node, const FStrin
     
     // Log all pins for debugging
     UE_LOG(LogTemp, Display, TEXT("FindPin: Looking for pin '%s' (Direction: %d) in node '%s'"), 
-           *PinName, (int32)Direction, *Node->GetName());
+           *PinName, static_cast<int32>(Direction), *Node->GetName());
     
-    for (const UEdGraphPin* Pin : Node->Pins)
+
+    for (UEdGraphPin* Pin : Node->Pins)
     {
-        UE_LOG(LogTemp, Display, TEXT("  - Available pin: '%s', Direction: %d, Category: %s"), 
-               *Pin->PinName.ToString(), (int32)Pin->Direction, *Pin->PinType.PinCategory.ToString());
+        UE_LOG(LogTemp, Verbose, TEXT("  - Found pin: %s (Direction: %d, Type: %s)"), 
+               *Pin->PinName.ToString(), static_cast<int32>(Pin->Direction), *Pin->PinType.PinCategory.ToString());
     }
     
     // First try exact match
@@ -584,8 +585,12 @@ bool FEpicUnrealMCPCommonUtils::SetObjectProperty(UObject* Object, const FString
     // Handle different property types
     if (Property->IsA<FBoolProperty>())
     {
-        ((FBoolProperty*)Property)->SetPropertyValue(PropertyAddr, Value->AsBool());
-        return true;
+        const FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property);
+        if (BoolProperty)
+        {
+            BoolProperty->SetPropertyValue(PropertyAddr, Value->AsBool());
+            return true;
+        }
     }
     else if (Property->IsA<FIntProperty>())
     {
@@ -599,13 +604,21 @@ bool FEpicUnrealMCPCommonUtils::SetObjectProperty(UObject* Object, const FString
     }
     else if (Property->IsA<FFloatProperty>())
     {
-        ((FFloatProperty*)Property)->SetPropertyValue(PropertyAddr, Value->AsNumber());
-        return true;
+        const FFloatProperty* FloatProperty = CastField<FFloatProperty>(Property);
+        if (FloatProperty)
+        {
+            FloatProperty->SetPropertyValue(PropertyAddr, static_cast<float>(Value->AsNumber()));
+            return true;
+        }
     }
     else if (Property->IsA<FStrProperty>())
     {
-        ((FStrProperty*)Property)->SetPropertyValue(PropertyAddr, Value->AsString());
-        return true;
+        const FStrProperty* StrProperty = CastField<FStrProperty>(Property);
+        if (StrProperty)
+        {
+            StrProperty->SetPropertyValue(PropertyAddr, Value->AsString());
+            return true;
+        }
     }
     else if (Property->IsA<FByteProperty>())
     {

@@ -215,7 +215,7 @@ TOOLS = [
                     "description": "Actor class: StaticMeshActor | PointLight | SpotLight | DirectionalLight | CameraActor | Blueprint",
                 },
                 "static_mesh": {"type": "string", "description": "Optional mesh path for StaticMeshActor, e.g. /Engine/BasicShapes/Cube"},
-                "blueprint_path": {"type": "string", "description": "Required if type is 'Blueprint', e.g. /Game/Blueprints/MyActorBlueprint"},
+                "blueprint_name": {"type": "string", "description": "Required if type is 'Blueprint', e.g. /Game/Blueprints/MyActorBlueprint"},
                 "location": {
                     "type": "object",
                     "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
@@ -486,6 +486,57 @@ TOOLS = [
             "required": ["search_term"]
         }
     },
+    {
+        "name": "read_blueprint_graph",
+        "description": "Read the entire topology of a Blueprint Graph (EventGraph or a Function). Returns all nodes, their XYZ positions, their precise IDs, all pins (tooltips, types), and most importantly, how pins are connected to each other ('linked_to').",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "blueprint_name": {"type": "string", "description": "Name of the Blueprint Asset without paths (e.g. 'BP_MyActor') (e.g., '/Game/Blueprints/BP_MyActor')"},
+                "graph_name": {"type": "string", "description": "The name of the graph to read (usually 'EventGraph' for the main event graph)."}
+            },
+            "required": ["blueprint_name", "graph_name"]
+        }
+    },
+    {
+        "name": "delete_blueprint_node",
+        "description": "Delete a node from a blueprint. Node connections will be safely broken before removal.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "blueprint_name": {"type": "string", "description": "Path to the Blueprint Asset"},
+                "node_id": {"type": "string", "description": "The precise GUID of the node to delete (obtained from read_blueprint_graph)."}
+            },
+            "required": ["blueprint_name", "node_id"]
+        }
+    },
+    {
+        "name": "break_blueprint_link",
+        "description": "Break a connection between two Blueprint pins without deleting the nodes.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "blueprint_name": {"type": "string", "description": "Path to the Blueprint Asset"},
+                "source_node_id": {"type": "string", "description": "The GUID of the source node"},
+                "source_pin_name": {"type": "string", "description": "The exact name of the source pin"},
+                "target_node_id": {"type": "string", "description": "The GUID of the target node"},
+                "target_pin_name": {"type": "string", "description": "The exact name of the target pin"}
+            },
+            "required": ["blueprint_name", "source_node_id", "source_pin_name", "target_node_id", "target_pin_name"]
+        }
+    },
+    {
+        "name": "delete_blueprint_component",
+        "description": "Delete a component (SCS Node) that was previously added to the Blueprint.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "blueprint_name": {"type": "string", "description": "Path to the Blueprint Asset"},
+                "component_name": {"type": "string", "description": "Name of the component to delete (e.g. 'CubeComponent')"}
+            },
+            "required": ["blueprint_name", "component_name"]
+        }
+    }
 ]
 
 
@@ -534,6 +585,7 @@ def agent_anthropic(messages: List[Dict], api_key: str, model: str) -> str:
         "You are an AI Agent operating inside Unreal Engine 5. "
         "You have tools to inspect, modify and control the editor world. "
         "You have a persistent Graph Memory. If the user asks a question, refers to past preferences, names, or project facts you don't immediately know, ALWAYS use the `query_memory` tool first to check your memory. "
+        "HOWEVER, to inspect the structural state or topology of a Blueprint Graph, ALWAYS prefer using the `read_blueprint_graph` tool to get the live, accurate state instead of relying purely on memory. "
         "IMPORTANT: Whenever you create or modify an Actor, Blueprint, Material, or any project asset, YOU MUST use the `remember_information` tool to store what you did so you don't forget it in future sessions! "
         "Always prefer using tools over guessing. Be concise and direct."
     )
@@ -600,6 +652,7 @@ def agent_openai(messages: List[Dict], api_key: str, model: str) -> str:
             "You are an AI Agent operating inside Unreal Engine 5. "
             "Use your tools to inspect and modify the editor world. "
             "You have a persistent Graph Memory. If the user asks a question, refers to past preferences, names, or project facts you don't immediately know, ALWAYS use the `query_memory` tool first to check your memory. "
+            "HOWEVER, to inspect the structural state or topology of a Blueprint Graph, ALWAYS prefer using the `read_blueprint_graph` tool to get the live, accurate state instead of relying purely on memory. "
             "IMPORTANT: Whenever you create or modify an Actor, Blueprint, Material, or any project asset, YOU MUST use the `remember_information` tool to store what you did so you don't forget it in future sessions! "
             "Be concise."
         ),
@@ -660,7 +713,8 @@ def agent_google(messages: List[Dict], api_key: str, model: str) -> str:
                 tools=google_tools,
                 system_instruction=(
                     "You are an AI Agent inside Unreal Engine 5. Use tools to inspect and modify the editor world. "
-                    "You have a persistent Graph Memory. If the user asks a question, refers to past preferences, names, or project facts you don't immediately know, ALWAYS use the `query_memory` tool first to check your memory."
+                    "You have a persistent Graph Memory. If the user asks a question, refers to past preferences, names, or project facts you don't immediately know, ALWAYS use the `query_memory` tool first to check your memory. "
+                    "HOWEVER, to inspect the structural state or topology of a Blueprint Graph, ALWAYS prefer using the `read_blueprint_graph` tool to get the live, accurate state instead of relying purely on memory."
                 )
             ),
         )
@@ -709,7 +763,8 @@ def agent_ollama(messages: List[Dict], api_key: str, model: str) -> str:
         "role": "system", 
         "content": (
             "You are an AI Agent inside Unreal Engine 5. Use tools to inspect and modify the editor world. "
-            "You have a persistent Graph Memory. If the user asks a question, refers to past preferences, names, or project facts you don't immediately know, ALWAYS use the `query_memory` tool first to check your memory."
+            "You have a persistent Graph Memory. If the user asks a question, refers to past preferences, names, or project facts you don't immediately know, ALWAYS use the `query_memory` tool first to check your memory. "
+            "HOWEVER, to inspect the structural state or topology of a Blueprint Graph, ALWAYS prefer using the `read_blueprint_graph` tool to get the live, accurate state instead of relying purely on memory."
         )
     }
     history = [system_msg] + [{"role": m["role"], "content": m["content"]} for m in messages]
