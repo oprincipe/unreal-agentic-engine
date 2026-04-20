@@ -1,8 +1,8 @@
-# Unreal Agentic Bridge — Piano di Implementazione
+# Unreal Agentic Engine — Piano di Implementazione
 
 **Versione:** 6.0 — Post Analisi Ingegneristica  
 **Data:** 2026-04-20  
-**Repository:** [github.com/oprincipe/unreal-agentic-bridge](https://github.com/oprincipe/unreal-agentic-bridge)  
+**Repository:** [github.com/oprincipe/unreal-agentic-engine](https://github.com/oprincipe/unreal-agentic-engine)  
 **Stato Attuale:** Infrastruttura bridge funzionante (Blueprint authoring, Behavior Tree manipulation, Blackboard management). Compilato e testato su UE 5.7.  
 **Obiettivo:** Evolvere il sistema da "bridge MCP" a **Search-based Autonomous Game AI Compiler**.
 
@@ -41,7 +41,7 @@ L'unico modo per creare valore difendibile è spostare la validazione dal **live
                        │ Validated IR (JSON)
                        ▼
 ┌──────────────────────────────────────────────────────────┐
-│              Unreal Agentic Bridge (C++)                  │
+│              Unreal Agentic Engine (C++)                  │
 │  ┌──────────┐  ┌──────────────┐  ┌────────────────────┐  │
 │  │ IR       │  │ Deterministic│  │  Structured        │  │
 │  │ Renderer │→ │ Simulation   │→ │  Report Generator  │  │
@@ -260,7 +260,7 @@ search_policy = SearchPolicy(
 
 ## Posizionamento Competitivo
 
-| Caratteristica | Bridge MCP Standard | Unreal Agentic Bridge (dopo Fasi 1–3) |
+| Caratteristica | Bridge MCP Standard | Unreal Agentic Engine (dopo Fasi 1–3) |
 |---------------|--------------------|-----------------------------------------|
 | Manipolazione asset | ✅ | ✅ |
 | Validazione sintattica | ✅ (compila/non compila) | ✅ |

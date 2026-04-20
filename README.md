@@ -1,4 +1,4 @@
-# Unreal Agentic Bridge 🤖
+# Unreal Agentic Engine 🤖
 
 [![Unreal Engine](https://img.shields.io/badge/Unreal%20Engine-5.5%2B-orange.svg)](https://www.unrealengine.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -11,7 +11,7 @@
 
 ## 🚀 True Agentic Workflow
 
-Unlike traditional procedural generation plugins, **Unreal Agentic Bridge** gives the AI "eyes" and "hands" inside the Editor.
+Unlike traditional procedural generation plugins, **Unreal Agentic Engine** gives the AI "eyes" and "hands" inside the Editor.
 You don't just ask the AI to "build a house". You can say:
 > "Read the variables of `BP_GameplaySettings`, tell me if gravity is too low, spawn a physics crate, run Play-in-Editor, and check the Engine logs to see if it triggers the collision warning."
 
@@ -58,14 +58,14 @@ You don't just ask the AI to "build a house". You can say:
 
 **Add Plugin to Your Existing Project**
 ```bash
-git clone https://github.com/oprincipe/unreal-agentic-bridge-agent.git
-cd unreal-agentic-bridge-agent
+git clone https://github.com/oprincipe/unreal-agentic-engine-agent.git
+cd unreal-agentic-engine-agent
 
 # Copy the plugin to your Unreal project
-cp -r UnrealAgenticBridge/ YourProject/Plugins/
+cp -r UnrealAgenticEngine/ YourProject/Plugins/
 
 # Enable it in the Unreal Editor
-Edit → Plugins → Search "UnrealAgenticBridge" → Enable → Restart Editor
+Edit → Plugins → Search "UnrealAgenticEngine" → Enable → Restart Editor
 ```
 
 ### 2. Launch the MCP Server
@@ -109,7 +109,7 @@ If you prefer using an external IDE like Cursor or Claude Desktop, you can hook 
       "command": "uv",
       "args": [
         "--directory", 
-        "/absolute/path/to/unreal-agentic-bridge-agent/UnrealAgenticBridge/Python",
+        "/absolute/path/to/unreal-agentic-engine-agent/UnrealAgenticEngine/Python",
         "run", 
         "unreal_agentic_server.py"
       ]
@@ -133,7 +133,7 @@ If you prefer using an external IDE like Cursor or Claude Desktop, you can hook 
 ```mermaid
 graph TB
     A[AI Client<br/>Cursor/Claude/Windsurf] -->|MCP Protocol| B[Python Server<br/>unreal_agentic_server.py]
-    B -->|TCP Socket| C[C++ Plugin<br/>UnrealAgenticBridge]
+    B -->|TCP Socket| C[C++ Plugin<br/>UnrealAgenticEngine]
     C -->|Native API| D[Unreal Engine 5.5+<br/>Editor & Runtime]
     
     B --> E[Agentic Tools]

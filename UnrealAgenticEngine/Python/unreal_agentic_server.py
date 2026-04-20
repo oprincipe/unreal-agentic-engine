@@ -491,51 +491,6 @@ def add_behavior_tree_node(behavior_tree: str, node_type: str, task_class: str =
 
 
 @mcp.tool()
-def set_behavior_tree_blackboard(behavior_tree: str, blackboard: str) -> Dict[str, Any]:
-    """
-    Link a BlackboardData asset to a BehaviorTree.
-    
-    Args:
-        behavior_tree: Full path to the BehaviorTree (e.g., '/Game/AI/BT_Enemy')
-        blackboard: Full path to the BlackboardData (e.g., '/Game/AI/BB_Enemy')
-    """
-    logger.info(f"[MCP AI] Invoking set_behavior_tree_blackboard. BT: {behavior_tree}, BB: {blackboard}")
-    unreal = get_unreal_connection()
-    if not unreal:
-        logger.error("[MCP AI] Failed to connect to Unreal Engine")
-        return {"success": False, "message": "Failed to connect to Unreal Engine"}
-    try:
-        response = unreal.send_command("set_behavior_tree_blackboard", {"behavior_tree": behavior_tree, "blackboard": blackboard})
-        logger.info(f"[MCP AI] set_behavior_tree_blackboard response: {response}")
-        return response or {"success": False, "message": "No response from Unreal"}
-    except Exception as e:
-        logger.error(f"[MCP AI] set_behavior_tree_blackboard error: {e}")
-        return {"success": False, "message": str(e)}
-
-
-@mcp.tool()
-def add_blackboard_key(blackboard: str, key_name: str, key_type: str, base_class: str = None) -> Dict[str, Any]:
-    """
-    Add a persistent key to a BlackboardData asset.
-    ...
-    """
-    logger.info(f"[MCP AI] Invoking add_blackboard_key. BB: {blackboard}, Key: {key_name}, Type: {key_type}, Base: {base_class}")
-    unreal = get_unreal_connection()
-    if not unreal:
-        logger.error("[MCP AI] Failed to connect to Unreal Engine")
-        return {"success": False, "message": "Failed to connect to Unreal Engine"}
-    try:
-        params = {"blackboard": blackboard, "key_name": key_name, "key_type": key_type}
-        if base_class: params["base_class"] = base_class
-        response = unreal.send_command("add_blackboard_key", params)
-        logger.info(f"[MCP AI] add_blackboard_key response: {response}")
-        return response or {"success": False, "message": "No response from Unreal"}
-    except Exception as e:
-        logger.error(f"[MCP AI] add_blackboard_key error: {e}")
-        return {"success": False, "message": str(e)}
-
-
-@mcp.tool()
 def connect_behavior_tree_nodes(behavior_tree: str, source_node: str, target_node: str) -> Dict[str, Any]:
     """
     Connect an execution pin between two BehaviorTree nodes. STILL IN DEVELOPMENT.

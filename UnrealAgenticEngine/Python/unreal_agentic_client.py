@@ -582,32 +582,6 @@ TOOLS = [
         }
     },
     {
-        "name": "set_behavior_tree_blackboard",
-        "description": "Link a BlackboardData asset to a BehaviorTree.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "behavior_tree": {"type": "string", "description": "Full path to the BehaviorTree (e.g., '/Game/AI/BT_Enemy')"},
-                "blackboard": {"type": "string", "description": "Full path to the BlackboardData (e.g., '/Game/AI/BB_Enemy')"}
-            },
-            "required": ["behavior_tree", "blackboard"]
-        }
-    },
-    {
-        "name": "add_blackboard_key",
-        "description": "Add a persistent key to a BlackboardData asset.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "blackboard": {"type": "string", "description": "Full path to the BlackboardData"},
-                "key_name": {"type": "string", "description": "Name of the new key"},
-                "key_type": {"type": "string", "description": "Type of the key ('Object', 'Vector', 'Float', 'Bool', 'Class')"},
-                "base_class": {"type": "string", "description": "Specific class path if key_type is 'Object' or 'Class' (e.g. '/Script/Engine.Actor')"}
-            },
-            "required": ["blackboard", "key_name", "key_type"]
-        }
-    },
-    {
         "name": "add_behavior_tree_node",
         "description": "Add a task, decorator, or service to a BehaviorTree. STILL IN DEVELOPMENT.",
         "input_schema": {
