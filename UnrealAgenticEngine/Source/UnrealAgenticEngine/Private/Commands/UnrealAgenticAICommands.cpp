@@ -6,6 +6,7 @@
 
 // Behavior Tree and Blackboard includes
 #include "BehaviorTree/BehaviorTree.h"
+#include "UnrealAgenticSimulationManager.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Object.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Vector.h"
@@ -59,6 +60,14 @@ TSharedPtr<FJsonObject> FUnrealAgenticAICommands::HandleCommand(const FString& C
     else if (CommandType == TEXT("render_ai_ir_to_asset"))
     {
         return HandleRenderAIIrToAsset(Params);
+    }
+    else if (CommandType == TEXT("start_deterministic_simulation"))
+    {
+        return HandleStartDeterministicSimulation(Params);
+    }
+    else if (CommandType == TEXT("get_simulation_result"))
+    {
+        return HandleGetSimulationResult(Params);
     }
 
     return FUnrealAgenticCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Unknown command: %s"), *CommandType));
@@ -623,6 +632,62 @@ TSharedPtr<FJsonObject> FUnrealAgenticAICommands::HandleRenderAIIrToAsset(const 
     ResultObj->SetBoolField(TEXT("success"), true);
     ResultObj->SetStringField(TEXT("message"), FString::Printf(TEXT("Successfully rendered IR. BT: %s, BB: %s"), *AssetPath, *BlackboardPath));
     return ResultObj;
+#else
+    return FUnrealAgenticCommonUtils::CreateErrorResponse(TEXT("Editor only feature"));
+#endif
+}
+
+TSharedPtr<FJsonObject> FUnrealAgenticAICommands::HandleStartDeterministicSimulation(const TSharedPtr<FJsonObject>& Params)
+{
+#if WITH_EDITOR
+    FString AssetPath;
+    if (!Params->TryGetStringField(TEXT("asset_path"), AssetPath))
+        return FUnrealAgenticCommonUtils::CreateErrorResponse(TEXT("Missing 'asset_path' parameter"));
+        
+    float MaxTimeLimit = 5.0f;
+    Params->TryGetNumberField(TEXT("max_time_limit"), MaxTimeLimit);
+
+    if (GEditor && GEditor->PlayWorld)
+        return FUnrealAgenticCommonUtils::CreateErrorResponse(TEXT("Already in PIE"));
+
+    UUnrealAgenticSimulationManager* SimManager = GEditor->GetEditorSubsystem<UUnrealAgenticSimulationManager>();
+    if (!SimManager)
+        return FUnrealAgenticCommonUtils::CreateErrorResponse(TEXT("Failed to access Simulation Manager"));
+
+    SimManager->StartSimulation(AssetPath, MaxTimeLimit);
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetBoolField(TEXT("success"), true);
+    ResultObj->SetStringField(TEXT("message"), TEXT("Simulation starting..."));
+    return ResultObj;
+#else
+    return FUnrealAgenticCommonUtils::CreateErrorResponse(TEXT("Editor only feature"));
+#endif
+}
+
+TSharedPtr<FJsonObject> FUnrealAgenticAICommands::HandleGetSimulationResult(const TSharedPtr<FJsonObject>& Params)
+{
+#if WITH_EDITOR
+    UUnrealAgenticSimulationManager* SimManager = GEditor->GetEditorSubsystem<UUnrealAgenticSimulationManager>();
+    if (!SimManager)
+        return FUnrealAgenticCommonUtils::CreateErrorResponse(TEXT("Failed to access Simulation Manager"));
+
+    if (SimManager->IsSimulationRunning())
+    {
+        TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+        ResultObj->SetBoolField(TEXT("success"), true);
+        ResultObj->SetStringField(TEXT("status"), TEXT("running"));
+        return ResultObj;
+    }
+
+    TSharedPtr<FJsonObject> FinalResults = SimManager->GetSimulationResults();
+    if (FinalResults.IsValid())
+    {
+        FinalResults->SetStringField(TEXT("status"), TEXT("completed"));
+        return FinalResults;
+    }
+
+    return FUnrealAgenticCommonUtils::CreateErrorResponse(TEXT("No simulation results available"));
 #else
     return FUnrealAgenticCommonUtils::CreateErrorResponse(TEXT("Editor only feature"));
 #endif

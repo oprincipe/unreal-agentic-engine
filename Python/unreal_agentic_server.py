@@ -596,7 +596,61 @@ def render_ai_ir_to_asset(ir_json: Dict[str, Any]) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"render_ai_ir_to_asset error: {e}")
         return {"success": False, "message": str(e)}
-
+@mcp.tool()
+def run_deterministic_simulation(
+    asset_path: str,
+    max_time_limit: float = 5.0
+) -> Dict[str, Any]:
+    """
+    Run a deterministic headless simulation on a given AI behavior asset to gather execution metrics.
+    This starts a PIE (Play In Editor) session asynchronously and polls the C++ manager until completion.
+    Always use this to validate behaviors after rendering them.
+    
+    Args:
+        asset_path: The full Unreal path to the BehaviorTree asset (e.g. '/Game/AI/BT_AgentTest').
+        max_time_limit: Seconds to run the simulation (default 5.0).
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    
+    try:
+        # Step 1: Start simulation
+        start_params = {"asset_path": asset_path, "max_time_limit": max_time_limit}
+        start_response = unreal.send_command("start_deterministic_simulation", start_params)
+        
+        if not start_response or not start_response.get("result", {}).get("success"):
+            return {"success": False, "message": f"Failed to start simulation: {start_response.get('error') or start_response}"}
+            
+        logger.info(f"[MCP AI] Successfully requested deterministic simulation logic for {asset_path}")
+        
+        # Step 2: Poll for completion
+        import time
+        max_retries = int(max_time_limit) + 15  # Add a safe buffer for engine spinning up 
+        
+        for i in range(max_retries):
+            time.sleep(1.0) # Sleep 1s per poll
+            poll_resp = unreal.send_command("get_simulation_result", {})
+            if poll_resp and poll_resp.get("result", {}):
+                result_data = poll_resp.get("result", {})
+                status = result_data.get("status")
+                
+                if status == "completed":
+                    logger.info(f"[MCP AI] Simulation Completed!")
+                    return poll_resp  # Return the final metrics payload
+                elif status == "running":
+                    logger.info("[MCP AI] ... simulation is tick-running ...")
+                    continue
+                else:
+                    return {"success": False, "message": f"Unexpected polling status: {status}"}
+            else:
+                return {"success": False, "message": f"Invalid response during polling: {poll_resp}"}
+                
+        return {"success": False, "message": "Simulation timed out from python client perspective."}
+        
+    except Exception as e:
+        logger.error(f"run_deterministic_simulation error: {e}")
+        return {"success": False, "message": str(e)}
 
 
 

@@ -38,7 +38,8 @@ public class UnrealAgenticEngine : ModuleRules
 				"DeveloperSettings",
 				"PhysicsCore",
 				"UMG",
-				"AIModule"
+				"AIModule",
+				"NavigationSystem"
 			}
 		);
 		
