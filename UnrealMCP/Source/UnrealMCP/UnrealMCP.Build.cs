@@ -56,7 +56,10 @@ public class UnrealMCP : ModuleRules
 				"Projects",
 				"AssetRegistry",
 				"AssetTools",
-				"Settings"
+				"Settings",
+				"AIGraph",
+				"BehaviorTreeEditor",
+				"GraphEditor"
 			}
 		);
 		

@@ -20,6 +20,11 @@
 // Graph includes
 #include "BehaviorTreeGraph.h"
 #include "BehaviorTreeGraphNode.h"
+#include "BehaviorTreeGraphNode_Task.h"
+#include "BehaviorTreeGraphNode_Decorator.h"
+#include "BehaviorTreeGraphNode_Service.h"
+#include "BehaviorTreeGraphNode_Composite.h"
+#include "BehaviorTreeGraphNode_Root.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
 #endif
@@ -276,14 +281,240 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPAICommands::HandleAddBlackboardKey(const T
 
 TSharedPtr<FJsonObject> FEpicUnrealMCPAICommands::HandleAddBehaviorTreeNode(const TSharedPtr<FJsonObject>& Params)
 {
-    // Minimal placeholder
-    return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("HandleAddBehaviorTreeNode not fully implemented yet"));
+#if WITH_EDITOR
+    FString BTPath, NodeTypeStr, TaskClassStr, ParentNodeStr;
+    if (!Params->TryGetStringField(TEXT("behavior_tree"), BTPath) ||
+        !Params->TryGetStringField(TEXT("node_type"), NodeTypeStr))
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing behavior_tree or node_type"));
+    }
+
+    Params->TryGetStringField(TEXT("task_class"), TaskClassStr);
+    Params->TryGetStringField(TEXT("parent_node"), ParentNodeStr);
+
+    auto FindAIAsset = [](const FString& AssetPath, UClass* AssetClass) -> UObject* {
+        UObject* Asset = UEditorAssetLibrary::LoadAsset(AssetPath);
+        if (!Asset && !AssetPath.Contains(TEXT("/"))) Asset = FindObject<UObject>(nullptr, *AssetPath);
+        if (!Asset)
+        {
+            FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+            TArray<FAssetData> AssetDataList;
+            AssetRegistryModule.Get().GetAssetsByClass(AssetClass->GetClassPathName(), AssetDataList);
+            for (const FAssetData& Data : AssetDataList)
+            {
+                if (Data.AssetName.ToString() == AssetPath || Data.ObjectPath.ToString().Contains(AssetPath))
+                {
+                    return Data.GetAsset();
+                }
+            }
+        }
+        return Asset;
+    };
+
+    UBehaviorTree* BTAsset = Cast<UBehaviorTree>(FindAIAsset(BTPath, UBehaviorTree::StaticClass()));
+    if (!BTAsset) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Invalid BehaviorTree"));
+
+    UBehaviorTreeGraph* BTGraph = Cast<UBehaviorTreeGraph>(BTAsset->BTGraph);
+    if (!BTGraph) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("BTAsset has no valid BTGraph"));
+
+    UClass* NodeClass = nullptr;
+    if (NodeTypeStr.Contains(TEXT("Task"))) NodeClass = UBehaviorTreeGraphNode_Task::StaticClass();
+    else if (NodeTypeStr.Contains(TEXT("Decorator"))) NodeClass = UBehaviorTreeGraphNode_Decorator::StaticClass();
+    else if (NodeTypeStr.Contains(TEXT("Service"))) NodeClass = UBehaviorTreeGraphNode_Service::StaticClass();
+    else if (NodeTypeStr.Contains(TEXT("Sequence")) || NodeTypeStr.Contains(TEXT("Selector")) || NodeTypeStr.Contains(TEXT("Composite"))) NodeClass = UBehaviorTreeGraphNode_Composite::StaticClass();
+    else if (NodeTypeStr.Contains(TEXT("Root"))) NodeClass = UBehaviorTreeGraphNode_Root::StaticClass();
+    else NodeClass = UBehaviorTreeGraphNode_Task::StaticClass();
+
+    FGraphNodeCreator<UBehaviorTreeGraphNode> NodeCreator(*BTGraph);
+    UBehaviorTreeGraphNode* NewNode = NodeCreator.CreateNode(true, NodeClass);
+    if (!NewNode) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to create BTGraphNode"));
+
+    if (!TaskClassStr.IsEmpty())
+    {
+        UClass* InternalClass = nullptr;
+
+        // Strip ".uasset" or "_C" if the AI added it incorrectly for string matching
+        FString CleanTaskClass = TaskClassStr.Replace(TEXT(".uasset"), TEXT("")).Replace(TEXT("_C"), TEXT(""));
+        
+        // 1. Direct path load (Blueprint)
+        if (TaskClassStr.Contains(TEXT("/")))
+        {
+            FString BPPath = TaskClassStr;
+            if (!BPPath.EndsWith(TEXT("_C"))) BPPath += TEXT("_C");
+            InternalClass = Cast<UClass>(UEditorAssetLibrary::LoadAsset(BPPath));
+            if (!InternalClass) InternalClass = LoadObject<UClass>(nullptr, *BPPath);
+        }
+
+        // 2. Iterate all loaded classes (Native & Blueprint)
+        if (!InternalClass)
+        {
+            for (TObjectIterator<UClass> It; It; ++It)
+            {
+                FString ClassName = It->GetName();
+                // Match exact, or with U prefix, or if ClassName ends with short name (BTTask_MoveTo ends with MoveTo)
+                if (ClassName.Equals(CleanTaskClass, ESearchCase::IgnoreCase) || 
+                   (TEXT("U") + ClassName).Equals(CleanTaskClass, ESearchCase::IgnoreCase) ||
+                   ClassName.EndsWith(CleanTaskClass, ESearchCase::IgnoreCase))
+                {
+                    InternalClass = *It;
+                    // If it's a blueprint generated class, prefer it
+                    if (InternalClass->IsChildOf(UBlueprintGeneratedClass::StaticClass()) && ClassName.Equals(CleanTaskClass + TEXT("_C"), ESearchCase::IgnoreCase))
+                        break;
+                    
+                    // If it's a native BT node, prefer it
+                    if (InternalClass->IsChildOf(UBTNode::StaticClass()))
+                        break;
+                }
+            }
+        }
+
+        if (InternalClass)
+        {
+            UE_LOG(LogTemp, Display, TEXT("EpicUnrealMCPAICommands: Resolved BT class %s"), *InternalClass->GetName());
+            
+            // For instances in AIGraph, the NodeInstance expects an initialized UObject.
+            NewNode->NodeInstance = NewObject<UObject>(NewNode, InternalClass);
+            UAIGraphNode::UpdateNodeClassDataFrom(InternalClass, NewNode->ClassData);
+            NewNode->UpdateNodeClassData();
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("EpicUnrealMCPAICommands: Failed to resolve BT class for %s"), *TaskClassStr);
+        }
+    }
+
+    NodeCreator.Finalize();
+    
+    // Attempt connection if parent provided
+    if (!ParentNodeStr.IsEmpty())
+    {
+        UBehaviorTreeGraphNode* ParentNode = nullptr;
+        for (UEdGraphNode* GraphNode : BTGraph->Nodes)
+        {
+            if (GraphNode->NodeGuid.ToString() == ParentNodeStr ||
+               (ParentNodeStr.Equals(TEXT("Root"), ESearchCase::IgnoreCase) && GraphNode->IsA(UBehaviorTreeGraphNode_Root::StaticClass())))
+            {
+                ParentNode = Cast<UBehaviorTreeGraphNode>(GraphNode);
+                break;
+            }
+        }
+        
+        UEdGraphPin* OutputPin = nullptr;
+        if (ParentNode)
+        {
+            for (UEdGraphPin* Pin : ParentNode->Pins)
+                if (Pin->Direction == EGPD_Output) { OutputPin = Pin; break; }
+        }
+        
+        UEdGraphPin* InputPin = nullptr;
+        if (NewNode)
+        {
+            for (UEdGraphPin* Pin : NewNode->Pins)
+                if (Pin->Direction == EGPD_Input) { InputPin = Pin; break; }
+        }
+
+        if (OutputPin && InputPin)
+        {
+            OutputPin->MakeLinkTo(InputPin);
+            ParentNode->NodeConnectionListChanged();
+            NewNode->NodeConnectionListChanged();
+        }
+    }
+
+    BTGraph->UpdateAsset();
+    UPackage* Package = BTAsset->GetOutermost();
+    if (Package) Package->MarkPackageDirty();
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetBoolField(TEXT("success"), true);
+    ResultObj->SetStringField(TEXT("node_id"), NewNode->NodeGuid.ToString());
+    return ResultObj;
+#else
+    return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Editor only feature"));
+#endif
 }
 
 TSharedPtr<FJsonObject> FEpicUnrealMCPAICommands::HandleConnectBehaviorTreeNodes(const TSharedPtr<FJsonObject>& Params)
 {
-    // Minimal placeholder
-    return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("HandleConnectBehaviorTreeNodes not fully implemented yet"));
+#if WITH_EDITOR
+    FString BTPath, SourceNodeStr, TargetNodeStr;
+    if (!Params->TryGetStringField(TEXT("behavior_tree"), BTPath) ||
+        !Params->TryGetStringField(TEXT("source_node"), SourceNodeStr) ||
+        !Params->TryGetStringField(TEXT("target_node"), TargetNodeStr))
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing parameters"));
+    }
+
+    auto FindAIAsset = [](const FString& AssetPath, UClass* AssetClass) -> UObject* {
+        UObject* Asset = UEditorAssetLibrary::LoadAsset(AssetPath);
+        if (!Asset && !AssetPath.Contains(TEXT("/"))) Asset = FindObject<UObject>(nullptr, *AssetPath);
+        if (!Asset)
+        {
+            FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+            TArray<FAssetData> AssetDataList;
+            AssetRegistryModule.Get().GetAssetsByClass(AssetClass->GetClassPathName(), AssetDataList);
+            for (const FAssetData& Data : AssetDataList)
+            {
+                if (Data.AssetName.ToString() == AssetPath || Data.ObjectPath.ToString().Contains(AssetPath))
+                {
+                    return Data.GetAsset();
+                }
+            }
+        }
+        return Asset;
+    };
+
+    UBehaviorTree* BTAsset = Cast<UBehaviorTree>(FindAIAsset(BTPath, UBehaviorTree::StaticClass()));
+    if (!BTAsset) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Invalid BehaviorTree"));
+    UBehaviorTreeGraph* BTGraph = Cast<UBehaviorTreeGraph>(BTAsset->BTGraph);
+    if (!BTGraph) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("No BTGraph"));
+
+    UEdGraphNode* SourceNode = nullptr;
+    UEdGraphNode* TargetNode = nullptr;
+
+    for (UEdGraphNode* Node : BTGraph->Nodes)
+    {
+        if (Node->NodeGuid.ToString() == SourceNodeStr || 
+           (SourceNodeStr.Equals(TEXT("Root"), ESearchCase::IgnoreCase) && Node->IsA(UBehaviorTreeGraphNode_Root::StaticClass())))
+        {
+            SourceNode = Node;
+        }
+        
+        if (Node->NodeGuid.ToString() == TargetNodeStr ||
+           (TargetNodeStr.Equals(TEXT("Root"), ESearchCase::IgnoreCase) && Node->IsA(UBehaviorTreeGraphNode_Root::StaticClass())))
+        {
+            TargetNode = Node;
+        }
+    }
+
+    if (!SourceNode || !TargetNode) return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Nodes not found"));
+
+    UEdGraphPin* OutputPin = nullptr;
+    for (UEdGraphPin* Pin : SourceNode->Pins)
+        if (Pin->Direction == EGPD_Output) { OutputPin = Pin; break; }
+        
+    UEdGraphPin* InputPin = nullptr;
+    for (UEdGraphPin* Pin : TargetNode->Pins)
+        if (Pin->Direction == EGPD_Input) { InputPin = Pin; break; }
+
+    if (OutputPin && InputPin)
+    {
+        OutputPin->MakeLinkTo(InputPin);
+        SourceNode->NodeConnectionListChanged();
+        TargetNode->NodeConnectionListChanged();
+        
+        BTGraph->UpdateAsset();
+        UPackage* Package = BTAsset->GetOutermost();
+        if (Package) Package->MarkPackageDirty();
+        
+        TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+        ResultObj->SetBoolField(TEXT("success"), true);
+        return ResultObj;
+    }
+    return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to connect pins"));
+#else
+    return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Editor only feature"));
+#endif
 }
 
 TSharedPtr<FJsonObject> FEpicUnrealMCPAICommands::HandleLayoutBehaviorTree(const TSharedPtr<FJsonObject>& Params)
