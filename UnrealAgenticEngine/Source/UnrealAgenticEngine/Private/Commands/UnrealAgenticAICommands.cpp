@@ -587,8 +587,37 @@ TSharedPtr<FJsonObject> FUnrealAgenticAICommands::HandleRenderAIIrToAsset(const 
         }
     }
 
-    // TODO: Recursively process tree_root to instantiate nodes here.
-    // For now, returning success for creating the assets and the keys.
+    // 4. Process Tree Nodes
+    UBehaviorTree* BTAsset = Cast<UBehaviorTree>(UEditorAssetLibrary::LoadAsset(AssetPath));
+    if (BTAsset)
+    {
+        UBehaviorTreeGraph* BTGraph = Cast<UBehaviorTreeGraph>(BTAsset->BTGraph);
+        if (BTGraph)
+        {
+            UBehaviorTreeGraphNode* ExistingRoot = nullptr;
+            for (UEdGraphNode* GraphNode : BTGraph->Nodes)
+            {
+                if (GraphNode->IsA(UBehaviorTreeGraphNode_Root::StaticClass()))
+                {
+                    ExistingRoot = Cast<UBehaviorTreeGraphNode>(GraphNode);
+                    break;
+                }
+            }
+
+            const TSharedPtr<FJsonObject>* TreeRootObj;
+            if (ExistingRoot && IR->TryGetObjectField(TEXT("tree_root"), TreeRootObj))
+            {
+                const TSharedPtr<FJsonObject>* ChildObj;
+                if ((*TreeRootObj)->TryGetObjectField(TEXT("child"), ChildObj))
+                {
+                    ProcessIRNode(*ChildObj, BTGraph, ExistingRoot);
+                }
+            }
+            
+            BTGraph->UpdateAsset();
+            BTAsset->GetOutermost()->MarkPackageDirty();
+        }
+    }
 
     TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
     ResultObj->SetBoolField(TEXT("success"), true);
@@ -596,5 +625,126 @@ TSharedPtr<FJsonObject> FUnrealAgenticAICommands::HandleRenderAIIrToAsset(const 
     return ResultObj;
 #else
     return FUnrealAgenticCommonUtils::CreateErrorResponse(TEXT("Editor only feature"));
+#endif
+}
+
+class UBehaviorTreeGraphNode* FUnrealAgenticAICommands::ProcessIRNode(const TSharedPtr<FJsonObject>& NodeJson, class UBehaviorTreeGraph* BTGraph, class UBehaviorTreeGraphNode* ParentNode)
+{
+#if WITH_EDITOR
+    if (!NodeJson.IsValid() || !BTGraph) return nullptr;
+
+    FString NodeTypeStr;
+    if (!NodeJson->TryGetStringField(TEXT("type"), NodeTypeStr)) return nullptr;
+
+    UClass* NodeClass = nullptr;
+    if (NodeTypeStr.Contains(TEXT("Task"))) NodeClass = UBehaviorTreeGraphNode_Task::StaticClass();
+    else if (NodeTypeStr.Contains(TEXT("Sequence")) || NodeTypeStr.Contains(TEXT("Selector")) || NodeTypeStr.Contains(TEXT("SimpleParallel"))) NodeClass = UBehaviorTreeGraphNode_Composite::StaticClass();
+    else NodeClass = UBehaviorTreeGraphNode_Task::StaticClass(); // fallback
+
+    FGraphNodeCreator<UBehaviorTreeGraphNode> NodeCreator(*BTGraph);
+    UBehaviorTreeGraphNode* NewNode = NodeCreator.CreateNode(true, NodeClass);
+    if (!NewNode) return nullptr;
+
+    FString TaskClassStr;
+    NodeJson->TryGetStringField(TEXT("task_class"), TaskClassStr);
+    
+    if (NodeTypeStr.Contains(TEXT("Sequence"))) TaskClassStr = TEXT("BTComposite_Sequence");
+    if (NodeTypeStr.Contains(TEXT("Selector"))) TaskClassStr = TEXT("BTComposite_Selector");
+    if (NodeTypeStr.Contains(TEXT("SimpleParallel"))) TaskClassStr = TEXT("BTComposite_SimpleParallel");
+
+    // Resolve internal class
+    if (!TaskClassStr.IsEmpty())
+    {
+        UClass* InternalClass = nullptr;
+        FString CleanTaskClass = TaskClassStr.Replace(TEXT(".uasset"), TEXT("")).Replace(TEXT("_C"), TEXT(""));
+        
+        if (TaskClassStr.Contains(TEXT("/")))
+        {
+            FString BPPath = TaskClassStr;
+            if (!BPPath.EndsWith(TEXT("_C"))) BPPath += TEXT("_C");
+            InternalClass = Cast<UClass>(UEditorAssetLibrary::LoadAsset(BPPath));
+            if (!InternalClass) InternalClass = LoadObject<UClass>(nullptr, *BPPath);
+        }
+
+        if (!InternalClass)
+        {
+            for (TObjectIterator<UClass> It; It; ++It)
+            {
+                FString ClassName = It->GetName();
+                if (ClassName.Equals(CleanTaskClass, ESearchCase::IgnoreCase) || 
+                   (TEXT("U") + ClassName).Equals(CleanTaskClass, ESearchCase::IgnoreCase) ||
+                   ClassName.EndsWith(CleanTaskClass, ESearchCase::IgnoreCase))
+                {
+                    InternalClass = *It;
+                    if (InternalClass->IsChildOf(UBlueprintGeneratedClass::StaticClass()) && ClassName.Equals(CleanTaskClass + TEXT("_C"), ESearchCase::IgnoreCase)) break;
+                    if (InternalClass->IsChildOf(UBTNode::StaticClass())) break;
+                }
+            }
+        }
+
+        if (InternalClass)
+        {
+            NewNode->NodeInstance = NewObject<UObject>(NewNode, InternalClass);
+            UAIGraphNode::UpdateNodeClassDataFrom(InternalClass, NewNode->ClassData);
+            NewNode->UpdateNodeClassData();
+            
+            // Set properties if any
+            const TSharedPtr<FJsonObject>* PropsObj;
+            if (NodeJson->TryGetObjectField(TEXT("properties"), PropsObj))
+            {
+                // Property reflection injection (advanced)
+            }
+        }
+    }
+
+    NodeCreator.Finalize();
+
+    if (ParentNode)
+    {
+        UEdGraphPin* OutputPin = nullptr;
+        for (UEdGraphPin* Pin : ParentNode->Pins)
+            if (Pin->Direction == EGPD_Output) { OutputPin = Pin; break; }
+
+        UEdGraphPin* InputPin = nullptr;
+        for (UEdGraphPin* Pin : NewNode->Pins)
+            if (Pin->Direction == EGPD_Input) { InputPin = Pin; break; }
+
+        if (OutputPin && InputPin)
+        {
+            OutputPin->MakeLinkTo(InputPin);
+            ParentNode->NodeConnectionListChanged();
+            NewNode->NodeConnectionListChanged();
+        }
+    }
+
+    // Process Children
+    if (NodeClass == UBehaviorTreeGraphNode_Composite::StaticClass())
+    {
+        const TArray<TSharedPtr<FJsonValue>>* ChildrenArray;
+        if (NodeJson->TryGetArrayField(TEXT("children"), ChildrenArray))
+        {
+            for (auto& ChildVal : *ChildrenArray)
+            {
+                TSharedPtr<FJsonObject> ChildObj = ChildVal->AsObject();
+                if (ChildObj.IsValid())
+                {
+                    ProcessIRNode(ChildObj, BTGraph, NewNode);
+                }
+            }
+        }
+    }
+    
+    // Automatic Graph Formatting
+    // Simple basic layout offsets
+    static int NodeX = 0;
+    static int NodeY = 0;
+    NewNode->NodePosX = NodeX;
+    NewNode->NodePosY = NodeY;
+    NodeX += 200;
+    NodeY += 150;
+
+    return NewNode;
+#else
+    return nullptr;
 #endif
 }
