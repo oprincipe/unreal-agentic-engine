@@ -399,6 +399,169 @@ def add_blueprint_branch_node(blueprint_name: str, node_position: List[float] = 
 
 
 @mcp.tool()
+def create_ai_asset(name: str, type: str) -> Dict[str, Any]:
+    """
+    Create an AI asset like UBehaviorTree or UBlackboardData.
+    
+    Args:
+        name: Full path for the new AI asset (e.g., '/Game/AI/BT_Enemy')
+        type: Type of AI asset to create exactly 'BehaviorTree' or 'Blackboard'
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        response = unreal.send_command("create_ai_asset", {"name": name, "type": type})
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"create_ai_asset error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def set_behavior_tree_blackboard(behavior_tree: str, blackboard: str) -> Dict[str, Any]:
+    """
+    Link a BlackboardData asset to a BehaviorTree.
+    
+    Args:
+        behavior_tree: Full path to the BehaviorTree (e.g., '/Game/AI/BT_Enemy')
+        blackboard: Full path to the BlackboardData (e.g., '/Game/AI/BB_Enemy')
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        response = unreal.send_command("set_behavior_tree_blackboard", {"behavior_tree": behavior_tree, "blackboard": blackboard})
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"set_behavior_tree_blackboard error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def add_blackboard_key(blackboard: str, key_name: str, key_type: str, base_class: str = None) -> Dict[str, Any]:
+    """
+    Add a persistent key to a BlackboardData asset.
+    
+    Args:
+        blackboard: Full path to the BlackboardData
+        key_name: Name of the new key
+        key_type: Type of the key ('Object', 'Vector', 'Float', 'Bool', 'Class')
+        base_class: Specific class path if KeyType is 'Object' or 'Class' (e.g., '/Script/Engine.Actor')
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        params = {"blackboard": blackboard, "key_name": key_name, "key_type": key_type}
+        if base_class: params["base_class"] = base_class
+        response = unreal.send_command("add_blackboard_key", params)
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"add_blackboard_key error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def add_behavior_tree_node(behavior_tree: str, node_type: str, task_class: str = None, parent_node: str = None) -> Dict[str, Any]:
+    """
+    Add a task, decorator, or service to a BehaviorTree. STILL IN DEVELOPMENT.
+    
+    Args:
+        behavior_tree: Full path to the BehaviorTree
+        node_type: Class name of the BT Node (e.g., 'UBehaviorTreeGraphNode_Task')
+        task_class: Optional specific C++ or BP class (e.g., 'UBTTask_MoveTo')
+        parent_node: Optional GUID of parent node to attach to
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        params = {
+            "behavior_tree": behavior_tree,
+            "node_type": node_type,
+            "task_class": task_class,
+            "parent_node": parent_node,
+        }
+        response = unreal.send_command("add_behavior_tree_node", {k:v for k,v in params.items() if v is not None})
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"add_behavior_tree_node error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def set_behavior_tree_blackboard(behavior_tree: str, blackboard: str) -> Dict[str, Any]:
+    """
+    Link a BlackboardData asset to a BehaviorTree.
+    
+    Args:
+        behavior_tree: Full path to the BehaviorTree (e.g., '/Game/AI/BT_Enemy')
+        blackboard: Full path to the BlackboardData (e.g., '/Game/AI/BB_Enemy')
+    """
+    logger.info(f"[MCP AI] Invoking set_behavior_tree_blackboard. BT: {behavior_tree}, BB: {blackboard}")
+    unreal = get_unreal_connection()
+    if not unreal:
+        logger.error("[MCP AI] Failed to connect to Unreal Engine")
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        response = unreal.send_command("set_behavior_tree_blackboard", {"behavior_tree": behavior_tree, "blackboard": blackboard})
+        logger.info(f"[MCP AI] set_behavior_tree_blackboard response: {response}")
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"[MCP AI] set_behavior_tree_blackboard error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def add_blackboard_key(blackboard: str, key_name: str, key_type: str, base_class: str = None) -> Dict[str, Any]:
+    """
+    Add a persistent key to a BlackboardData asset.
+    ...
+    """
+    logger.info(f"[MCP AI] Invoking add_blackboard_key. BB: {blackboard}, Key: {key_name}, Type: {key_type}, Base: {base_class}")
+    unreal = get_unreal_connection()
+    if not unreal:
+        logger.error("[MCP AI] Failed to connect to Unreal Engine")
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        params = {"blackboard": blackboard, "key_name": key_name, "key_type": key_type}
+        if base_class: params["base_class"] = base_class
+        response = unreal.send_command("add_blackboard_key", params)
+        logger.info(f"[MCP AI] add_blackboard_key response: {response}")
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"[MCP AI] add_blackboard_key error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
+def connect_behavior_tree_nodes(behavior_tree: str, source_node: str, target_node: str) -> Dict[str, Any]:
+    """
+    Connect an execution pin between two BehaviorTree nodes. STILL IN DEVELOPMENT.
+    
+    Args:
+        behavior_tree: Full path to the BehaviorTree
+        source_node: Source GUID
+        target_node: Target GUID
+    """
+    unreal = get_unreal_connection()
+    if not unreal:
+        return {"success": False, "message": "Failed to connect to Unreal Engine"}
+    try:
+        params = {
+            "behavior_tree": behavior_tree,
+            "source_node": source_node,
+            "target_node": target_node
+        }
+        response = unreal.send_command("connect_behavior_tree_nodes", params)
+        return response or {"success": False, "message": "No response from Unreal"}
+    except Exception as e:
+        logger.error(f"connect_behavior_tree_nodes error: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@mcp.tool()
 def create_blueprint_custom_event(
     blueprint_name: str,
     event_name: str,

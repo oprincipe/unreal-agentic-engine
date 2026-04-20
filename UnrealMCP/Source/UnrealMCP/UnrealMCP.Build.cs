@@ -37,7 +37,8 @@ public class UnrealMCP : ModuleRules
 				"JsonUtilities",
 				"DeveloperSettings",
 				"PhysicsCore",
-				"UMG"
+				"UMG",
+				"AIModule"
 			}
 		);
 		
@@ -67,7 +68,9 @@ public class UnrealMCP : ModuleRules
 					"PropertyEditor",       // For property editing
 					"ToolMenus",            // For editor UI
 					"BlueprintEditorLibrary", // For Blueprint utilities
-					"MessageLog"            // For in-editor message notifications
+					"MessageLog",           // For in-editor message notifications
+					"BehaviorTreeEditor",   // For BT Asset modification
+					"AIGraph"               // For BT Graph manipulation
 				}
 			);
 		}

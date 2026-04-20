@@ -41,6 +41,7 @@ UEpicUnrealMCPBridge::UEpicUnrealMCPBridge()
     BlueprintQueryCommands = MakeUnique<FEpicUnrealMCPBlueprintQueryCommands>();
     BlueprintAuthoringCommands = MakeUnique<FEpicUnrealMCPBlueprintAuthoringCommands>();
     AssetMutatorCommands = MakeUnique<FEpicUnrealMCPAssetMutatorCommands>();
+    AICommands = MakeUnique<FEpicUnrealMCPAICommands>();
 }
 
 UEpicUnrealMCPBridge::~UEpicUnrealMCPBridge()
@@ -49,6 +50,7 @@ UEpicUnrealMCPBridge::~UEpicUnrealMCPBridge()
     BlueprintQueryCommands.Reset();
     BlueprintAuthoringCommands.Reset();
     AssetMutatorCommands.Reset();
+    AICommands.Reset();
 }
 
 // Initialize subsystem
@@ -256,11 +258,23 @@ FString UEpicUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const T
             // Asset Mutator Commands
             else if (CommandType == TEXT("set_physics_properties") ||
                      CommandType == TEXT("set_static_mesh_properties") ||
+                     CommandType == TEXT("set_skeletal_mesh_properties") ||
+                     CommandType == TEXT("set_blueprint_class_defaults") ||
                      CommandType == TEXT("set_mesh_material_color") ||
                      CommandType == TEXT("duplicate_asset") ||
                      CommandType == TEXT("spawn_blueprint_actor"))
             {
                 ResultJson = AssetMutatorCommands->HandleCommand(CommandType, Params);
+            }
+            // AI Authoring Commands
+            else if (CommandType == TEXT("create_ai_asset") ||
+                     CommandType == TEXT("add_behavior_tree_node") ||
+                     CommandType == TEXT("connect_behavior_tree_nodes") ||
+                     CommandType == TEXT("layout_behavior_tree") ||
+                     CommandType == TEXT("set_behavior_tree_blackboard") ||
+                     CommandType == TEXT("add_blackboard_key"))
+            {
+                ResultJson = AICommands->HandleCommand(CommandType, Params);
             }
             // Fallback Editor commands moving out of Blueprint monolith
             else if (CommandType == TEXT("destroy_actor") ||

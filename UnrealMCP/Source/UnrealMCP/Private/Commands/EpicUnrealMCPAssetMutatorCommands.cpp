@@ -13,6 +13,9 @@
 #include "Engine/SimpleConstructionScript.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
+#include "Engine/SkeletalMesh.h"
+#include "Animation/AnimBlueprint.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Engine/UserDefinedEnum.h"
 #include "Factories/BlueprintFactory.h"
 #include "GameFramework/Actor.h"
@@ -54,6 +57,10 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPAssetMutatorCommands::HandleCommand(
     return HandleSetPhysicsProperties(Params);
   if (CommandType == TEXT("set_static_mesh_properties"))
     return HandleSetStaticMeshProperties(Params);
+  if (CommandType == TEXT("set_skeletal_mesh_properties"))
+    return HandleSetSkeletalMeshProperties(Params);
+  if (CommandType == TEXT("set_blueprint_class_defaults"))
+    return HandleSetBlueprintClassDefaults(Params);
   if (CommandType == TEXT("set_mesh_material_color"))
     return HandleSetMeshMaterialColor(Params);
   if (CommandType == TEXT("duplicate_asset"))
@@ -593,4 +600,202 @@ FEpicUnrealMCPAssetMutatorCommands::HandleSpawnBlueprintActor(
 
   return FEpicUnrealMCPCommonUtils::CreateErrorResponse(
       TEXT("Failed to spawn blueprint actor"));
+}
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPAssetMutatorCommands::HandleSetSkeletalMeshProperties(const TSharedPtr<FJsonObject>& Params)
+{
+    FString BlueprintName;
+    if (!Params->TryGetStringField(TEXT("blueprint_name"), BlueprintName)) {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'blueprint_name' parameter"));
+    }
+
+    FString ComponentName;
+    if (!Params->TryGetStringField(TEXT("component_name"), ComponentName)) {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'component_name' parameter"));
+    }
+
+    UBlueprint* Blueprint = FEpicUnrealMCPCommonUtils::FindBlueprint(BlueprintName);
+    if (!Blueprint) {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Blueprint not found"));
+    }
+
+    const USCS_Node* ComponentNode = nullptr;
+    for (const USCS_Node* Node : Blueprint->SimpleConstructionScript->GetAllNodes()) {
+        if (Node && Node->GetVariableName().ToString() == ComponentName) {
+            ComponentNode = Node;
+            break;
+        }
+    }
+
+    USkeletalMeshComponent* MeshComponent = nullptr;
+    AActor* CDO = nullptr;
+
+    if (!ComponentNode) {
+        if (UClass* ParentClass = Blueprint->ParentClass) {
+            UBlueprintGeneratedClass* BPGC = Cast<UBlueprintGeneratedClass>(Blueprint->GeneratedClass);
+            if (BPGC) {
+                CDO = Cast<AActor>(BPGC->GetDefaultObject(true));
+                if (CDO) {
+                    for (UActorComponent* Comp : CDO->GetComponents()) {
+                        if (Comp && Comp->GetFName().ToString() == ComponentName) {
+                            MeshComponent = Cast<USkeletalMeshComponent>(Comp);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        MeshComponent = Cast<USkeletalMeshComponent>(ComponentNode->ComponentTemplate);
+    }
+
+    if (!MeshComponent) {
+        UE_LOG(LogTemp, Error, TEXT("SetSkeletalMeshProperties: Component '%s' not found or is not a SkeletalMeshComponent!"), *ComponentName);
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Component not found or is not a SkeletalMeshComponent"));
+    }
+
+    Blueprint->Modify();
+    MeshComponent->Modify();
+    if (CDO) CDO->Modify();
+    
+    MeshComponent->PreEditChange(nullptr);
+
+    bool bChanged = false;
+
+    if (Params->HasField(TEXT("skeletal_mesh"))) {
+        FString MeshPath = Params->GetStringField(TEXT("skeletal_mesh"));
+        if (USkeletalMesh* Mesh = Cast<USkeletalMesh>(UEditorAssetLibrary::LoadAsset(MeshPath))) {
+            MeshComponent->SetSkeletalMeshAsset(Mesh);
+            bChanged = true;
+            UE_LOG(LogTemp, Log, TEXT("SetSkeletalMeshProperties: Successfully set skeletal mesh to %s"), *MeshPath);
+        } else {
+            UE_LOG(LogTemp, Error, TEXT("SetSkeletalMeshProperties: Failed to load SkeletalMesh at %s"), *MeshPath);
+            return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Failed to load SkeletalMesh at %s"), *MeshPath));
+        }
+    }
+
+    if (Params->HasField(TEXT("anim_class"))) {
+        FString AnimPath = Params->GetStringField(TEXT("anim_class"));
+        UClass* AnimClass = nullptr;
+        if (AnimPath.EndsWith(TEXT("_C"))) {
+            AnimClass = LoadObject<UClass>(nullptr, *AnimPath);
+        } else {
+            if (UBlueprint* AnimBP = FEpicUnrealMCPCommonUtils::FindBlueprintByName(AnimPath)) {
+                AnimClass = AnimBP->GeneratedClass;
+            } else {
+                FString ClassPath = AnimPath + TEXT("_C");
+                AnimClass = LoadObject<UClass>(nullptr, *ClassPath);
+            }
+        }
+        
+        if (AnimClass) {
+            MeshComponent->SetAnimInstanceClass(AnimClass);
+            bChanged = true;
+            UE_LOG(LogTemp, Log, TEXT("SetSkeletalMeshProperties: Successfully set anim class to %s"), *AnimClass->GetName());
+        } else {
+            UE_LOG(LogTemp, Error, TEXT("SetSkeletalMeshProperties: Failed to load AnimClass %s"), *AnimPath);
+            return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Failed to load AnimClass at %s"), *AnimPath));
+        }
+    }
+
+    if (Params->HasField(TEXT("location"))) {
+        MeshComponent->SetRelativeLocation(FEpicUnrealMCPCommonUtils::GetVectorFromJson(Params, TEXT("location")));
+        bChanged = true;
+    }
+    if (Params->HasField(TEXT("rotation"))) {
+        MeshComponent->SetRelativeRotation(FEpicUnrealMCPCommonUtils::GetRotatorFromJson(Params, TEXT("rotation")));
+        bChanged = true;
+    }
+    if (Params->HasField(TEXT("scale"))) {
+        MeshComponent->SetRelativeScale3D(FEpicUnrealMCPCommonUtils::GetVectorFromJson(Params, TEXT("scale")));
+        bChanged = true;
+    }
+
+    MeshComponent->PostEditChange();
+
+    if (bChanged) {
+        FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+        // Force the CDO properties to broadcast as updated
+        if (CDO) {
+            CDO->PostEditChange();
+        }
+    }
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("component"), ComponentName);
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPAssetMutatorCommands::HandleSetBlueprintClassDefaults(const TSharedPtr<FJsonObject>& Params)
+{
+    FString BlueprintName;
+    if (!Params->TryGetStringField(TEXT("blueprint_name"), BlueprintName)) {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'blueprint_name' parameter"));
+    }
+
+    UBlueprint* Blueprint = FEpicUnrealMCPCommonUtils::FindBlueprint(BlueprintName);
+    if (!Blueprint || !Blueprint->GeneratedClass) {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Blueprint not found or has no GeneratedClass"));
+    }
+
+    UObject* CDO = Blueprint->GeneratedClass->GetDefaultObject(true);
+    if (!CDO) {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Could not get ClassDefaultObject"));
+    }
+
+    const TSharedPtr<FJsonObject>* PropertiesObj;
+    if (Params->TryGetObjectField(TEXT("properties"), PropertiesObj)) {
+        for (const auto& Elem : (*PropertiesObj)->Values) {
+            FString PropName = Elem.Key;
+            FProperty* Property = CDO->GetClass()->FindPropertyByName(*PropName);
+            if (Property) {
+                if (Elem.Value->Type == EJson::String) {
+                    FString ValStr = Elem.Value->AsString();
+                    if (FClassProperty* ClassProp = CastField<FClassProperty>(Property)) {
+                        UClass* LoadedClass = nullptr;
+                        if (ValStr.EndsWith(TEXT("_C"))) {
+                            LoadedClass = Cast<UClass>(UEditorAssetLibrary::LoadAsset(ValStr));
+                            if (!LoadedClass) LoadedClass = LoadObject<UClass>(nullptr, *ValStr);
+                        } else {
+                            if (UBlueprint* FoundBP = FEpicUnrealMCPCommonUtils::FindBlueprintByName(ValStr)) {
+                                LoadedClass = FoundBP->GeneratedClass;
+                            } else {
+                                FString ClassPath = ValStr + TEXT("_C");
+                                LoadedClass = Cast<UClass>(UEditorAssetLibrary::LoadAsset(ClassPath));
+                            }
+                        }
+                        if (LoadedClass) {
+                            ClassProp->SetObjectPropertyValue_InContainer(CDO, LoadedClass);
+                        } else {
+                            UE_LOG(LogTemp, Warning, TEXT("Failed to load class %s for property %s"), *ValStr, *PropName);
+                        }
+                    } else if (FObjectProperty* ObjProp = CastField<FObjectProperty>(Property)) {
+                        UObject* LoadedObj = UEditorAssetLibrary::LoadAsset(ValStr);
+                        if (LoadedObj) {
+                            ObjProp->SetObjectPropertyValue_InContainer(CDO, LoadedObj);
+                        }
+                    } else {
+                        Property->ImportText_Direct(*ValStr, Property->ContainerPtrToValuePtr<void>(CDO), CDO, 0);
+                    }
+                } else if (Elem.Value->Type == EJson::Boolean) {
+                    if (FBoolProperty* BoolProp = CastField<FBoolProperty>(Property)) {
+                        BoolProp->SetPropertyValue_InContainer(CDO, Elem.Value->AsBool());
+                    } else {
+                        FString ValStr = Elem.Value->AsBool() ? TEXT("True") : TEXT("False");
+                        Property->ImportText_Direct(*ValStr, Property->ContainerPtrToValuePtr<void>(CDO), CDO, 0);
+                    }
+                } else if (Elem.Value->Type == EJson::Number) {
+                    FString ValStr = FString::SanitizeFloat(Elem.Value->AsNumber());
+                    Property->ImportText_Direct(*ValStr, Property->ContainerPtrToValuePtr<void>(CDO), CDO, 0);
+                }
+            }
+        }
+    }
+
+    FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetBoolField(TEXT("success"), true);
+    return ResultObj;
 }

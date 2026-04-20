@@ -170,8 +170,36 @@ UBlueprint* FEpicUnrealMCPCommonUtils::FindBlueprint(const FString& BlueprintNam
 
 UBlueprint* FEpicUnrealMCPCommonUtils::FindBlueprintByName(const FString& BlueprintName)
 {
-    // The correct object path for a Blueprint asset is /Game/Path/AssetName.AssetName
-    const FString ObjectPath = FString::Printf(TEXT("/Game/Blueprints/%s.%s"), *BlueprintName, *BlueprintName);
+    FString ObjectPath;
+    FString PackagePath;
+    
+    if (BlueprintName.StartsWith(TEXT("/")))
+    {
+        if (BlueprintName.Contains(TEXT(".")))
+        {
+            ObjectPath = BlueprintName;
+            PackagePath = ObjectPath.Left(ObjectPath.Find(TEXT(".")));
+        }
+        else
+        {
+            PackagePath = BlueprintName;
+            int32 LastSlashIndex;
+            if (BlueprintName.FindLastChar('/', LastSlashIndex))
+            {
+                FString AssetName = BlueprintName.RightChop(LastSlashIndex + 1);
+                ObjectPath = FString::Printf(TEXT("%s.%s"), *PackagePath, *AssetName);
+            }
+            else
+            {
+                ObjectPath = BlueprintName;
+            }
+        }
+    }
+    else
+    {
+        ObjectPath = FString::Printf(TEXT("/Game/Blueprints/%s.%s"), *BlueprintName, *BlueprintName);
+        PackagePath = TEXT("/Game/Blueprints/") + BlueprintName;
+    }
 
     // First, try to load the object directly, as it's the fastest method.
     UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *ObjectPath);
@@ -181,7 +209,6 @@ UBlueprint* FEpicUnrealMCPCommonUtils::FindBlueprintByName(const FString& Bluepr
     }
 
     // If direct loading fails, try to find the asset using the Asset Registry.
-    // This is more robust for newly created assets.
     const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
     const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
 
@@ -194,9 +221,7 @@ UBlueprint* FEpicUnrealMCPCommonUtils::FindBlueprintByName(const FString& Bluepr
         }
     }
 
-    // Fallback for cases where the asset is in memory but not yet fully saved,
-    // where it might be found via its package path.
-    const FString PackagePath = TEXT("/Game/Blueprints/") + BlueprintName;
+    // Fallback for cases where the asset is in memory but not yet fully saved
     Blueprint = FindObject<UBlueprint>(nullptr, *PackagePath);
     
     if (!Blueprint)

@@ -21,6 +21,7 @@
 #include "Styling/AppStyle.h"
 #include "HttpModule.h"
 #include "Http.h"
+#include "DragAndDrop/AssetDragDropOp.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMCPChat"
 
@@ -433,6 +434,46 @@ void SUnrealMCPChatWidget::ClearCurrentSession()
     if (ChatVBox.IsValid()) ChatVBox->ClearChildren();
     // Wipe persistence for a clean start
     FFileHelper::SaveStringToFile(TEXT("[]"), *GetHistoryFilePath());
+}
+
+FReply SUnrealMCPChatWidget::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+    TSharedPtr<FAssetDragDropOp> AssetDragDropOp = DragDropEvent.GetOperationAs<FAssetDragDropOp>();
+    if (AssetDragDropOp.IsValid() && AssetDragDropOp->HasAssets())
+    {
+        return FReply::Handled();
+    }
+    return FReply::Unhandled();
+}
+
+FReply SUnrealMCPChatWidget::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+    TSharedPtr<FAssetDragDropOp> AssetDragDropOp = DragDropEvent.GetOperationAs<FAssetDragDropOp>();
+    if (AssetDragDropOp.IsValid() && AssetDragDropOp->HasAssets() && InputTextBox.IsValid())
+    {
+        FString AssetRefs;
+        for (const FAssetData& AssetData : AssetDragDropOp->GetAssets())
+        {
+            if (!AssetRefs.IsEmpty())
+            {
+                AssetRefs += TEXT(", ");
+            }
+            AssetRefs += AssetData.GetObjectPathString();
+        }
+
+        FString CurrentText = InputTextBox->GetText().ToString();
+        if (!CurrentText.IsEmpty() && !CurrentText.EndsWith(TEXT(" ")))
+        {
+            CurrentText += TEXT(" ");
+        }
+        CurrentText += AssetRefs;
+        
+        InputTextBox->SetText(FText::FromString(CurrentText));
+        
+        return FReply::Handled();
+    }
+
+    return FReply::Unhandled();
 }
 
 #undef LOCTEXT_NAMESPACE

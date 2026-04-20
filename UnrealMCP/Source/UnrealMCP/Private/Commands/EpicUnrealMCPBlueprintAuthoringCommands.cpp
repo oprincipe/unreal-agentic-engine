@@ -72,8 +72,28 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintAuthoringCommands::HandleCreateBl
         return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'name' parameter"));
     }
 
-    const FString PackagePath = TEXT("/Game/Blueprints/");
-    const FString AssetName = BlueprintName;
+    FString PackagePath = TEXT("/Game/Blueprints/");
+    FString AssetName = BlueprintName;
+    
+    if (BlueprintName.StartsWith(TEXT("/Game/")))
+    {
+        int32 LastSlash;
+        if (BlueprintName.FindLastChar('/', LastSlash))
+        {
+            PackagePath = BlueprintName.Left(LastSlash + 1);
+            AssetName = BlueprintName.RightChop(LastSlash + 1);
+        }
+    }
+    else
+    {
+        int32 LastSlash;
+        if (BlueprintName.FindLastChar('/', LastSlash))
+        {
+            PackagePath += BlueprintName.Left(LastSlash + 1);
+            AssetName = BlueprintName.RightChop(LastSlash + 1);
+        }
+    }
+
     if (UEditorAssetLibrary::DoesAssetExist(PackagePath + AssetName))
     {
         return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Blueprint already exists: %s"), *BlueprintName));
@@ -88,43 +108,55 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintAuthoringCommands::HandleCreateBl
 
     if (!ParentClass.IsEmpty())
     {
-        FString ClassName = ParentClass;
-        if (!ClassName.StartsWith(TEXT("A")))
+        // Try exact matches first
+        if (ParentClass == TEXT("Actor") || ParentClass == TEXT("AActor"))
         {
-            ClassName = TEXT("A") + ClassName;
+            SelectedParentClass = AActor::StaticClass();
         }
-
-        UClass* FoundClass;
-        if (ClassName == TEXT("APawn"))
+        else if (ParentClass == TEXT("Pawn") || ParentClass == TEXT("APawn"))
         {
-            FoundClass = APawn::StaticClass();
+            SelectedParentClass = APawn::StaticClass();
         }
-        else if (ClassName == TEXT("AActor"))
+        else if (ParentClass == TEXT("Character") || ParentClass == TEXT("ACharacter"))
         {
-            FoundClass = AActor::StaticClass();
+            SelectedParentClass = LoadClass<AActor>(nullptr, TEXT("/Script/Engine.Character"));
+        }
+        else if (ParentClass == TEXT("AIController") || ParentClass == TEXT("AAIController"))
+        {
+            SelectedParentClass = LoadClass<AActor>(nullptr, TEXT("/Script/AIModule.AIController"));
         }
         else
         {
-            // Try loading the class - LoadClass is more reliable than FindObject for runtime lookups
-            const FString ClassPath = FString::Printf(TEXT("/Script/Engine.%s"), *ClassName);
-            FoundClass = LoadClass<AActor>(nullptr, *ClassPath);
-
-            if (!FoundClass)
+            // For general lookup, we should use the name WITHOUT the 'A' or 'U' prefix
+            FString ClassNameNoPrefix = ParentClass;
+            if (ParentClass.StartsWith(TEXT("A"), ESearchCase::IgnoreCase) || ParentClass.StartsWith(TEXT("U"), ESearchCase::IgnoreCase))
             {
-                const FString GameClassPath = FString::Printf(TEXT("/Script/Game.%s"), *ClassName);
-                FoundClass = LoadClass<AActor>(nullptr, *GameClassPath);
+                if (ParentClass.Len() > 1 && FChar::IsUpper(ParentClass[1])) 
+                {
+                    ClassNameNoPrefix = ParentClass.RightChop(1);
+                }
+            }
+
+            UClass* FoundClass = LoadClass<AActor>(nullptr, *FString::Printf(TEXT("/Script/Engine.%s"), *ClassNameNoPrefix));
+            if (!FoundClass)
+                FoundClass = LoadClass<AActor>(nullptr, *FString::Printf(TEXT("/Script/Game.%s"), *ClassNameNoPrefix));
+            if (!FoundClass)
+                FoundClass = LoadClass<AActor>(nullptr, *FString::Printf(TEXT("/Script/AIModule.%s"), *ClassNameNoPrefix));
+
+            if (FoundClass)
+            {
+                SelectedParentClass = FoundClass;
             }
         }
 
-        if (FoundClass)
+        if (SelectedParentClass)
         {
-            SelectedParentClass = FoundClass;
-            UE_LOG(LogTemp, Log, TEXT("Successfully set parent class to '%s'"), *ClassName);
+            UE_LOG(LogTemp, Log, TEXT("Successfully set parent class to '%s'"), *ParentClass);
         }
         else
         {
-            UE_LOG(LogTemp, Warning, TEXT("Could not find specified parent class '%s' at paths: /Script/Engine.%s or /Script/Game.%s, defaulting to AActor"),
-                *ClassName, *ClassName, *ClassName);
+            SelectedParentClass = AActor::StaticClass();
+            UE_LOG(LogTemp, Warning, TEXT("Could not find specified parent class '%s', defaulting to AActor"), *ParentClass);
         }
     }
 

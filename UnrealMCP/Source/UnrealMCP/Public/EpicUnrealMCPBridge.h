@@ -14,6 +14,7 @@
 #include "Commands/EpicUnrealMCPBlueprintQueryCommands.h"
 #include "Commands/EpicUnrealMCPBlueprintAuthoringCommands.h"
 #include "Commands/EpicUnrealMCPAssetMutatorCommands.h"
+#include "Commands/EpicUnrealMCPAICommands.h"
 #include "EpicUnrealMCPBridge.generated.h"
 
 class FMCPServerRunnable;
@@ -61,4 +62,5 @@ private:
 	TUniquePtr<FEpicUnrealMCPBlueprintQueryCommands> BlueprintQueryCommands;
 	TUniquePtr<FEpicUnrealMCPBlueprintAuthoringCommands> BlueprintAuthoringCommands;
 	TUniquePtr<FEpicUnrealMCPAssetMutatorCommands> AssetMutatorCommands;
+	TUniquePtr<FEpicUnrealMCPAICommands> AICommands;
 };

@@ -380,6 +380,38 @@ TOOLS = [
         }
     },
     {
+        "name": "set_skeletal_mesh_properties",
+        "description": "Set properties of a SkeletalMesh component inside a blueprint (e.g. assigning the actual Skeletal Mesh asset or Anim Blueprint class). Works on inherited or added components.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "blueprint_name": {"type": "string"},
+                "component_name": {"type": "string", "description": "Name of the component, like 'Mesh' for inherited Character mesh, or a custom added name."},
+                "skeletal_mesh": {"type": "string", "description": "Optional path to the skeletal mesh asset (e.g. '/Engine/Characters/Mannequins/Meshes/SKM_Manny')"},
+                "anim_class": {"type": "string", "description": "Optional path to the AnimBlueprint class to assign (e.g. '/Engine/Characters/Mannequins/Animations/ABP_Manny')"},
+                "location": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}},
+                "rotation": {"type": "object", "properties": {"pitch": {"type": "number"}, "yaw": {"type": "number"}, "roll": {"type": "number"}}},
+                "scale": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}}
+            },
+            "required": ["blueprint_name", "component_name"]
+        }
+    },
+    {
+        "name": "set_blueprint_class_defaults",
+        "description": "Set the default properties (Class Defaults) of a Blueprint, such as AIControllerClass or AutoPossessAI.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "blueprint_name": {"type": "string"},
+                "properties": {
+                    "type": "object",
+                    "description": "Key-value mapping of property names to their string values. E.g. {\"AIControllerClass\": \"/Game/MyAIController\", \"AutoPossessAI\": \"PlacedInWorldOrSpawned\"}"
+                }
+            },
+            "required": ["blueprint_name", "properties"]
+        }
+    },
+    {
         "name": "set_mesh_material_color",
         "description": "Apply a Material or Color to a Mesh component inside a blueprint.",
         "input_schema": {
@@ -535,6 +567,45 @@ TOOLS = [
                 "component_name": {"type": "string", "description": "Name of the component to delete (e.g. 'CubeComponent')"}
             },
             "required": ["blueprint_name", "component_name"]
+        }
+    },
+    {
+        "name": "create_ai_asset",
+        "description": "Create an AI asset like UBehaviorTree or UBlackboardData.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Full path for the new AI asset (e.g., '/Game/AI/BT_Enemy')"},
+                "type": {"type": "string", "description": "Type of AI asset to create exactly 'BehaviorTree' or 'Blackboard'"}
+            },
+            "required": ["name", "type"]
+        }
+    },
+    {
+        "name": "add_behavior_tree_node",
+        "description": "Add a task, decorator, or service to a BehaviorTree. STILL IN DEVELOPMENT.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "behavior_tree": {"type": "string", "description": "Full path to the BehaviorTree"},
+                "node_type": {"type": "string", "description": "Class name of the BT Node (e.g., 'UBehaviorTreeGraphNode_Task', 'UBehaviorTreeGraphNode_Decorator')"},
+                "task_class": {"type": "string", "description": "The specific C++ or BP class (e.g., 'UBTTask_MoveTo')"},
+                "parent_node": {"type": "string", "description": "GUID of the parent node to attach to"}
+            },
+            "required": ["behavior_tree", "node_type"]
+        }
+    },
+    {
+        "name": "connect_behavior_tree_nodes",
+        "description": "Connect an execution pin between two BehaviorTree nodes. STILL IN DEVELOPMENT.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "behavior_tree": {"type": "string", "description": "Full path to the BehaviorTree"},
+                "source_node": {"type": "string"},
+                "target_node": {"type": "string"}
+            },
+            "required": ["behavior_tree", "source_node", "target_node"]
         }
     }
 ]

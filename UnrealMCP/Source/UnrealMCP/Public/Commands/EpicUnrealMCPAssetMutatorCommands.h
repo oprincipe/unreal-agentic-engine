@@ -11,6 +11,8 @@ public:
 private:
     TSharedPtr<FJsonObject> HandleSetPhysicsProperties(const TSharedPtr<FJsonObject>& Params);
     TSharedPtr<FJsonObject> HandleSetStaticMeshProperties(const TSharedPtr<FJsonObject>& Params);
+    TSharedPtr<FJsonObject> HandleSetSkeletalMeshProperties(const TSharedPtr<FJsonObject>& Params);
+    TSharedPtr<FJsonObject> HandleSetBlueprintClassDefaults(const TSharedPtr<FJsonObject>& Params);
     TSharedPtr<FJsonObject> HandleSetMeshMaterialColor(const TSharedPtr<FJsonObject>& Params);
     TSharedPtr<FJsonObject> HandleDuplicateAsset(const TSharedPtr<FJsonObject>& Params);
     TSharedPtr<FJsonObject> HandleDestroyActor(const TSharedPtr<FJsonObject>& Params);

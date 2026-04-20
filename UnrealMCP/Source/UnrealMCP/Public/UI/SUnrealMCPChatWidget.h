@@ -27,6 +27,10 @@ private:
     FReply OnRestartAgentClicked();
     void OnInputTextCommitted(const FText& InText, ETextCommit::Type CommitMethod);
 
+    // Drag and Drop
+    virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+    virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+
     // Chat Rendering
     TSharedRef<SWidget> BuildChatBubble(const FChatMessage& Message);
     void AddMessageToUI(const FChatMessage& Message);
